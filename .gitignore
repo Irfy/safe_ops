@@ -1,4 +1,5 @@
-safe_cast_test
-safe_cast_test.exe
-safe_cast_test.exe.stackdump
+safe_cast
 core.*
+
+safe_cast.exe
+safe_cast.exe.stackdump
