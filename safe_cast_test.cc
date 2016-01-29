@@ -22,6 +22,11 @@ int main(int argc, char**argv) {
     int x = safe_cast_trunc2(2.5);
     assert(x == 2);
 
+printf("expecting -1 < 0u to fail, but Safe(-1) < 0u and -1 < Safe(0u) to succeed...\n");
+    assert(-1 < 0u);
+    assert(safe(-1) < 0u);
+    //assert(-1 < safe(0u));
+
 printf("ad-hoc tests passed\n");
 
 printf("expecting two asserts...\n");
