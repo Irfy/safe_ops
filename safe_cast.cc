@@ -21,19 +21,63 @@ int main(int argc, char**argv) {
 
     int x = safe_cast_trunc2(2.5);
     assert(x == 2);
+// std::cout << "# Testing " << x << ' ' << #op << ' ' << y << std::endl;
+#define safe_cmp_assert_impl(x, op, y) \
+    assert(x op y); \
+    assert(safe(x) op y); \
+    assert(x op safe(y));
 
-printf("expecting -1 < 0u to fail, but Safe(-1) < 0u and -1 < Safe(0u) to succeed...\n");
-    assert(-1 < 0u);
-    assert(safe(-1) < 0u);
-    //assert(-1 < safe(0u));
+#define safe_cmp_assert(x, op, y, rev_op) \
+    safe_cmp_assert_impl(x, op, y) \
+    safe_cmp_assert_impl(y, rev_op, x)
+
+#define safe_cmp_assert2(x, op, op2, y, rev_op, rev_op2) \
+    safe_cmp_assert(x, op, y, rev_op) \
+    safe_cmp_assert(x, op2, y, rev_op2)
+
+printf("    in the following tests, if a 'safe' test were to fail, it would look like this:\n");
+    assert(safe(1) > 2);
+
+printf("    expecting 1u >/>= int8_t(-1) to fail, but safe variants to succeed...\n");
+    safe_cmp_assert2(1u, >, >=, int8_t(-1), <, <=);
+
+printf("    expecting 0u >/>= -1 to fail, but safe variants to succeed...\n");
+    safe_cmp_assert2(0u, >, >=, -1, <, <=);
+
+printf("    expecting 1ull >/>= -1 to fail, but safe variants to succeed...\n");
+    safe_cmp_assert2(1ull, >, >=, -1, <, <=);
+
+printf("    expecting 4294967296ull >/>= -1 to fail, but safe variants to succeed...\n");
+    safe_cmp_assert2(4294967296ull, >, >=, -1, <, <=);
+
+printf("    expecting 1ull >/>= -1l to fail, but safe variants to succeed...\n");
+    safe_cmp_assert2(1ull, >, >=, -1l, <, <=);
+
+printf("    expecting 2147483648u >/!= -2147483648 to fail, but safe variants to succeed...\n");
+    safe_cmp_assert2(2147483648u, >, !=, (-2147483647-1), <, !=);
+    //NB: http://stackoverflow.com/questions/35130890/understanding-231-and-231-integer-promotion
+
+printf("    expecting 4294967295u >/!= -1 to fail, but safe variants to succeed...\n");
+    safe_cmp_assert2(4294967295u, >, !=, -1, <, !=);
+
+printf("    no failures expected in any of the floating point comparisons (neither native nor 'safe')...\n");
+    safe_cmp_assert2(numeric_limits_compat<__int128_t>::max(), <, <=, numeric_limits_compat<float>::max(), >, >=);
+    safe_cmp_assert2(numeric_limits_compat<float>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
+    safe_cmp_assert2(numeric_limits_compat<double>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
+
+// special casing:
+    safe_cmp_assert2(numeric_limits_compat<__uint128_t>::max(), >, >=, numeric_limits_compat<float>::max(), <, <=);
+    // conversion to float yields inf so it works mathematically correct
+    safe_cmp_assert2(numeric_limits_compat<__uint128_t>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
+    safe_cmp_assert2(numeric_limits_compat<__uint128_t>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
 
 printf("ad-hoc tests passed\n");
 
-printf("expecting two asserts...\n");
+printf("    expecting two asserts...\n");
     safe_cast_assert<int>(numeric_limits_compat<long>::max());
     safe_cast_assert<int>(numeric_limits_compat<long>::min());
 
-printf("expecting two log entries...\n");
+printf("    expecting two log entries...\n");
     safe_cast_log<int>(numeric_limits_compat<long>::max(), &logger);
     safe_cast_log<int>(numeric_limits_compat<long>::min(), &logger);
 
