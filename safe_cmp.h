@@ -159,6 +159,14 @@ struct safe_t {
 template<typename Left>
 safe_t<Left> safe(Left x) { return safe_t<Left>(x); }
 
-#include "safe_common_undef.h"
+#undef IF
+#undef IS
+#undef ISNT
+#undef SIZE
+
+#undef SIGNED
+#undef UNSIGNED
+#undef INTEGRAL
+#undef FLOATING
 
 #endif // _SAFE_CMP_H

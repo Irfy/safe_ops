@@ -139,7 +139,15 @@ struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_SMALL_ENO
 #undef CASTABLE_WHEN_POSITIVE_AND_SMALL_ENOUGH
 #undef CASTABLE_WHEN_SMALL_ENOUGH
 
-#include "safe_common_undef.h"
+#undef IF
+#undef IS
+#undef ISNT
+#undef SIZE
+
+#undef SIGNED
+#undef UNSIGNED
+#undef INTEGRAL
+#undef FLOATING
 
 #undef BOTH_SIGNED
 #undef SAME_INTEGRALITY
