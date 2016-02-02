@@ -39,6 +39,10 @@ int main(int argc, char**argv) {
     safe_cmp_assert(x, op, y, rev_op) \
     safe_cmp_assert(x, op2, y, rev_op2)
 
+cout << "sizeof(int): " << sizeof(int) << endl;
+cout << "sizeof(long): " << sizeof(long) << endl;
+cout << "sizeof(long long): " << sizeof(long long) << endl;
+
 printf("    in the following tests, if a 'safe' test were to fail, it would look like this:\n");
     assert(safe(1) > 2);
 
