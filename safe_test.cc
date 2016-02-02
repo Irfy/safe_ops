@@ -5,6 +5,7 @@
 #include <typeinfo>
 
 using std::cout;
+using std::cerr;
 using std::endl;
 using std::bad_cast;
 
@@ -40,19 +41,19 @@ int main(int argc, char**argv) {
     safe_cmp_assert(x, op, y, rev_op) \
     safe_cmp_assert(x, op2, y, rev_op2)
 
-cout << "sizeof(int): " << sizeof(int) << endl;
-cout << "sizeof(long): " << sizeof(long) << endl;
+cerr << "sizeof(int): " << sizeof(int) << endl;
+cerr << "sizeof(long): " << sizeof(long) << endl;
 
-cout << std::boolalpha;
-#define cout_trait(type, trait) \
-    cout << "std::" #trait "<" #type ">::value : " << std::trait<type>::value << endl
-#define cout_traits(type) \
-    cout << "sizeof(" #type "): " << sizeof(type) << endl; \
-    cout_trait(type, is_signed); \
-    cout_trait(type, is_unsigned)
+cerr << std::boolalpha;
+#define cerr_trait(type, trait) \
+    cerr << "std::" #trait "<" #type ">::value : " << std::trait<type>::value << endl
+#define cerr_traits(type) \
+    cerr << "sizeof(" #type "): " << sizeof(type) << endl; \
+    cerr_trait(type, is_signed); \
+    cerr_trait(type, is_unsigned)
 
-// cout_traits(long long);
-// cout_traits(unsigned long long);
+// cerr_traits(long long);
+// cerr_traits(unsigned long long);
 
 printf("    in the following tests, if a 'safe' test were to fail, it would look like this:\n");
     assert(safe(1) > 2);
