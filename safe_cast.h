@@ -322,7 +322,11 @@ struct greater_or_equal_size_type<T, U, IF(INTEGRAL(T) && INTEGRAL(U) && SIZE(T,
 
 template<typename Left, typename Right, typename Enable = void>
 struct safe_cmp {
-#define generator(name, op) static bool name(Left x, Right y) { return x op y; }
+#define generator(name, op) \
+    static bool name(Left x, Right y) { \
+        /* std::cout << "matched generic safe_cmp\n"; */ \
+        return x op y; \
+    }
     generate_ops(generator)
 #undef generator
 };
@@ -333,6 +337,7 @@ struct safe_cmp {
 template<typename Left, typename Right>
 struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED(Left, Right)> {
 #define generator(name, op) static bool name(Left x, Right y) { \
+        /* std::cout << "matched promoting safe_cmp\n"; */ \
         typedef typename greater_or_equal_size_type<Left, Right>::type larger_type_of_the_two; \
         typedef typename next_larger_signed_type<larger_type_of_the_two>::type target_type; \
         return static_cast<target_type>(x) op static_cast<target_type>(y); \
