@@ -1,5 +1,4 @@
 #include <iostream>
-#include <cassert>
 #include <limits>
 #include <stdint.h>
 #include <cstdio>
@@ -11,6 +10,8 @@ using std::bad_cast;
 
 #undef assert // for testability
 #define assert(e) ((e) ? (void)0 : ((void)printf ("%s:%u: failed assertion `%s'\n", __FILE__, __LINE__, #e)))
+
+#include "safe_cmp.h"
 #include "safe_cast.h"
 
 const char *progname = "";
@@ -41,7 +42,17 @@ int main(int argc, char**argv) {
 
 cout << "sizeof(int): " << sizeof(int) << endl;
 cout << "sizeof(long): " << sizeof(long) << endl;
-cout << "sizeof(long long): " << sizeof(long long) << endl;
+
+cout << std::boolalpha;
+#define cout_trait(type, trait) \
+    cout << "std::" #trait "<" #type ">::value : " << std::trait<type>::value << endl
+#define cout_traits(type) \
+    cout << "sizeof(" #type "): " << sizeof(type) << endl; \
+    cout_trait(type, is_signed); \
+    cout_trait(type, is_unsigned)
+
+// cout_traits(long long);
+// cout_traits(unsigned long long);
 
 printf("    in the following tests, if a 'safe' test were to fail, it would look like this:\n");
     assert(safe(1) > 2);

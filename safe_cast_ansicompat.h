@@ -1,6 +1,8 @@
 #ifndef _SAFE_CAST_ANSICOMPAT_H_
 #define _SAFE_CAST_ANSICOMPAT_H_
 
+#include <limits>
+
 #if defined(__STRICT_ANSI__) && defined(_GLIBCXX_USE_INT128)
 // 128bit integers available, but missing specialization
 #define max64u __uint128_t(0xffffffffffffffff)

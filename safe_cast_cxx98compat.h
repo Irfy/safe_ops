@@ -1,8 +1,6 @@
 #ifndef _SAFE_CAST_CXX98COMPAT_H_
 #define _SAFE_CAST_CXX98COMPAT_H_
 
-#if __cplusplus < 201103L
-
 namespace std {
 template<bool value, typename T>
 struct enable_if {};
@@ -75,7 +73,5 @@ struct is_unsigned {
 };
 
 }
-
-#endif // __cplusplus
 
 #endif // _SAFE_CAST_CXX98COMPAT_H_
