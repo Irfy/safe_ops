@@ -3,7 +3,11 @@
 #include <limits>
 #include <stdint.h>
 #include <cstdio>
+#include <typeinfo>
 
+using std::cout;
+using std::endl;
+using std::bad_cast;
 
 #undef assert // for testability
 #define assert(e) ((e) ? (void)0 : ((void)printf ("%s:%u: failed assertion `%s'\n", __FILE__, __LINE__, #e)))
@@ -21,7 +25,7 @@ int main(int argc, char**argv) {
 
     int x = safe_cast_trunc2(2.5);
     assert(x == 2);
-// std::cout << "# Testing " << x << ' ' << #op << ' ' << y << std::endl;
+// cout << "# Testing " << x << ' ' << #op << ' ' << y << endl;
 #define safe_cmp_assert_impl(x, op, y) \
     assert(x op y); \
     assert(safe(x) op y); \
@@ -84,14 +88,14 @@ printf("    expecting two log entries...\n");
     try {
         safe_cast_throw<int>(numeric_limits_compat<long>::max());
         assert(0);
-    } catch (std::bad_cast &) {
+    } catch (bad_cast &) {
         printf ("expected bad_cast due to overflow\n");
     }
 
     try {
         safe_cast_throw<int>(numeric_limits_compat<long>::min());
         assert(0);
-    } catch (std::bad_cast &) {
+    } catch (bad_cast &) {
         printf ("expected bad_cast due to underflow\n");
     }
 
