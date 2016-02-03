@@ -66,14 +66,14 @@ printf("    expecting 1u >/>= int8_t(-1) to fail, but safe variants to succeed..
 printf("    expecting 0u >/>= -1 to fail, but safe variants to succeed...\n");
     safe_cmp_assert2(0u, >, >=, -1, <, <=);
 
-printf("    expecting 1ull >/>= -1 to fail, but safe variants to succeed...\n");
-    safe_cmp_assert2(1ull, >, >=, -1, <, <=);
+printf("    expecting 1ul >/>= -1 to fail, but safe variants to succeed...\n");
+    safe_cmp_assert2(1ul, >, >=, -1, <, <=);
 
-printf("    expecting 4294967296ull >/>= -1 to fail, but safe variants to succeed...\n");
-    safe_cmp_assert2(4294967296ull, >, >=, -1, <, <=);
+printf("    expecting 4294967296ul >/>= -1 to fail, but safe variants to succeed...\n");
+    safe_cmp_assert2(4294967296ul, >, >=, -1, <, <=);
 
-printf("    expecting 1ull >/>= -1l to fail, but safe variants to succeed...\n");
-    safe_cmp_assert2(1ull, >, >=, -1l, <, <=);
+printf("    expecting 1ul >/>= -1l to fail, but safe variants to succeed...\n");
+    safe_cmp_assert2(1ul, >, >=, -1l, <, <=);
 
 printf("    expecting 2147483648u >/!= -2147483648 to fail, but safe variants to succeed...\n");
     safe_cmp_assert2(2147483648u, >, !=, (-2147483647-1), <, !=);
@@ -81,18 +81,20 @@ printf("    expecting 2147483648u >/!= -2147483648 to fail, but safe variants to
 
 printf("    expecting 4294967295u >/!= -1 to fail, but safe variants to succeed...\n");
     safe_cmp_assert2(4294967295u, >, !=, -1, <, !=);
+#pragma GCC diagnostic pop
 
 printf("    no failures expected in any of the floating point comparisons (neither native nor 'safe')...\n");
-    safe_cmp_assert2(numeric_limits_compat<__int128_t>::max(), <, <=, numeric_limits_compat<float>::max(), >, >=);
     safe_cmp_assert2(numeric_limits_compat<float>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
     safe_cmp_assert2(numeric_limits_compat<double>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
+#ifdef SAFE_USE_INT128
+    safe_cmp_assert2(numeric_limits_compat<safe_int128_t>::max(), <, <=, numeric_limits_compat<float>::max(), >, >=);
 
 // special casing:
-    safe_cmp_assert2(numeric_limits_compat<__uint128_t>::max(), >, >=, numeric_limits_compat<float>::max(), <, <=);
+    safe_cmp_assert2(numeric_limits_compat<safe_uint128_t>::max(), >, >=, numeric_limits_compat<float>::max(), <, <=);
     // conversion to float yields inf so it works mathematically correct
-    safe_cmp_assert2(numeric_limits_compat<__uint128_t>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
-    safe_cmp_assert2(numeric_limits_compat<__uint128_t>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
-#pragma GCC diagnostic pop
+    safe_cmp_assert2(numeric_limits_compat<safe_uint128_t>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
+    safe_cmp_assert2(numeric_limits_compat<safe_uint128_t>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
+#endif
 
 printf("ad-hoc tests passed\n");
 
@@ -196,29 +198,29 @@ printf("floating point tests passed\n");
 printf("naive sizeof tests passed (float <-> int64/32_t)\n");
 
 /// ints greater than float
-#if defined(_GLIBCXX_USE_INT128)
-    // float -> __uint128_t
-    assert(safe_cast_trunc<__uint128_t>(0.0f) == 0);
-    assert(safe_cast_trunc<__uint128_t>(numeric_limits_compat<float>::max()) == numeric_limits_compat<float>::max());
-    assert(safe_cast_trunc<__uint128_t>(-numeric_limits_compat<float>::max()) == numeric_limits_compat<__uint128_t>::min());
+#ifdef SAFE_USE_INT128
+    // float -> safe_uint128_t
+    assert(safe_cast_trunc<safe_uint128_t>(0.0f) == 0);
+    assert(safe_cast_trunc<safe_uint128_t>(numeric_limits_compat<float>::max()) == numeric_limits_compat<float>::max());
+    assert(safe_cast_trunc<safe_uint128_t>(-numeric_limits_compat<float>::max()) == numeric_limits_compat<safe_uint128_t>::min());
 
-    // __uint128_t -> float
-    assert(safe_cast_trunc<float>(static_cast<__uint128_t>(0)) == 0.0f);
-    assert(safe_cast_trunc<float>(numeric_limits_compat<__uint128_t>::max()) == numeric_limits_compat<float>::max());
-    assert(safe_cast_trunc<float>(numeric_limits_compat<__uint128_t>::min()) == numeric_limits_compat<__uint128_t>::min());
+    // safe_uint128_t -> float
+    assert(safe_cast_trunc<float>(static_cast<safe_uint128_t>(0)) == 0.0f);
+    assert(safe_cast_trunc<float>(numeric_limits_compat<safe_uint128_t>::max()) == numeric_limits_compat<float>::max());
+    assert(safe_cast_trunc<float>(numeric_limits_compat<safe_uint128_t>::min()) == numeric_limits_compat<safe_uint128_t>::min());
 
-/// __int128_t is less than float, but test special-case handling regardless
-    // float -> __int128_t
-    assert(safe_cast_trunc<__int128_t>(0.0f) == 0);
-    assert(safe_cast_trunc<__int128_t>(numeric_limits_compat<float>::max()) == numeric_limits_compat<__int128_t>::max());
-    assert(safe_cast_trunc<__int128_t>(-numeric_limits_compat<float>::max()) == numeric_limits_compat<__int128_t>::min());
+/// safe_int128_t is less than float, but test special-case handling regardless
+    // float -> safe_int128_t
+    assert(safe_cast_trunc<safe_int128_t>(0.0f) == 0);
+    assert(safe_cast_trunc<safe_int128_t>(numeric_limits_compat<float>::max()) == numeric_limits_compat<safe_int128_t>::max());
+    assert(safe_cast_trunc<safe_int128_t>(-numeric_limits_compat<float>::max()) == numeric_limits_compat<safe_int128_t>::min());
 
-    // __int128_t -> float
-    assert(safe_cast_trunc<float>(static_cast<__int128_t>(0)) == 0.0f);
-    assert(safe_cast_trunc<float>(numeric_limits_compat<__int128_t>::max()) == numeric_limits_compat<__int128_t>::max());
-    assert(safe_cast_trunc<float>(numeric_limits_compat<__int128_t>::min()) == numeric_limits_compat<__int128_t>::min());
+    // safe_int128_t -> float
+    assert(safe_cast_trunc<float>(static_cast<safe_int128_t>(0)) == 0.0f);
+    assert(safe_cast_trunc<float>(numeric_limits_compat<safe_int128_t>::max()) == numeric_limits_compat<safe_int128_t>::max());
+    assert(safe_cast_trunc<float>(numeric_limits_compat<safe_int128_t>::min()) == numeric_limits_compat<safe_int128_t>::min());
 
-printf("extreme sizeof tests passed (float <-> int128_t)\n");
+printf("extreme sizeof tests passed (float <-> safe_[u]int128_t)\n");
 
 #endif
 
