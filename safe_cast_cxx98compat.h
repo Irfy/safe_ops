@@ -57,12 +57,11 @@ struct is_signed {
     gen_signed(signed short);
     gen_signed(signed int);
     gen_signed(signed long);
-    gen_signed(signed long long);
     gen_signed(float);
     gen_signed(double);
     gen_signed(long double);
-#if !defined(__STRICT_ANSI__) && defined(_GLIBCXX_USE_INT128)
-    gen_signed(__int128_t);
+#ifdef SAFE_USE_INT128
+    gen_signed(safe_int128_t);
 #endif
 
 #undef gen_signed

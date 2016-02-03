@@ -24,8 +24,8 @@
 #define TARGET_LE           SIZE(Target, <=, Source)
 #define TARGET_GT           SIZE(Target, >, Source)
 #define TARGET_GE           SIZE(Target, >=, Source)
-#define INT_GT_FLOAT(T,U)   (IS(U,float) && INTEGRAL(T) && sizeof(T) > 16 && SIGNED(T)) // __int128_t fits in float completely. so must be larger than that
-#define UINT_GT_FLOAT(T,U)  (IS(U,float) && INTEGRAL(T) && sizeof(T) >= 16 && UNSIGNED(T)) // __uint128_t doesn't fit in float. so greater-or-equal
+#define INT_GT_FLOAT(T,U)   (IS(U,float) && INTEGRAL(T) && sizeof(T) > 16 && SIGNED(T)) // __int128 fits in float completely. so must be larger than that
+#define UINT_GT_FLOAT(T,U)  (IS(U,float) && INTEGRAL(T) && sizeof(T) >= 16 && UNSIGNED(T)) // unsigned __int128 doesn't fit in float. so greater-or-equal
 #define INTEGRAL_GT_FLOAT(T,U)  (INT_GT_FLOAT(T,U) || UINT_GT_FLOAT(T,U))
 
 #define MAX(T) numeric_limits_compat<T>::max()

@@ -73,10 +73,10 @@ struct next_larger_signed_type<T, IF(INTEGRAL(T) && sizeof(T) == 4)> {
     typedef int64_t type;
 };
 
-#if defined(__STRICT_ANSI__) && defined(_GLIBCXX_USE_INT128)
+#ifdef SAFE_USE_INT128
 template<typename T>
 struct next_larger_signed_type<T, IF(INTEGRAL(T) && sizeof(T) == 8)> {
-    typedef __int128_t type;
+    typedef safe_int128_t type;
 };
 #endif
 
