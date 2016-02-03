@@ -1,8 +1,10 @@
 #include <iostream>
+#include <iomanip>
 #include <limits>
 #include <stdint.h>
 #include <cstdio>
 #include <typeinfo>
+#include <inttypes.h>
 
 using std::cout;
 using std::cerr;
@@ -12,8 +14,22 @@ using std::bad_cast;
 #undef assert // for testability
 //#define assert(e) ((e) ? (void)0 : ((void)printf ("%s:%u: failed assertion `%s'\n", __FILE__, __LINE__, #e)))
 #define assert(e) ((e) ? (void)0 : ((void)printf ("failed assertion `%s'\n", #e)))
+#define assert_op(e1, op, e2) ((e1) op (e2) ? (void)0 : ((void)(cout << "failed assertion `" << #e1 << " " #op " " << #e2 << ": [" << (e1) << "] isn't " #op " [" << (e2) << "]\n")))
+#define assert_eq(e1, e2) assert_op(e1, ==, e2)
+#define assert_ne(e1, e2) assert_op(e1, !=, e2)
 
 #include "safe_ops.h"
+
+#ifdef SAFE_USE_INT128
+std::ostream& operator<<(std::ostream& os, safe_uint128_t t) {
+    os << std::hex << "0x" << std::setw(16) <<std::setfill('0') << (uint64_t)(t>>64);
+    return os << std::setw(16) << std::setfill('0') << (uint64_t)(t) << std::dec;
+}
+
+std::ostream& operator<<(std::ostream& os, safe_int128_t t) {
+    return os << (safe_uint128_t)t;
+}
+#endif
 
 const char *progname = "";
 
@@ -120,170 +136,70 @@ printf("    expecting two log entries...\n");
         printf ("expected bad_cast due to underflow\n");
     }
 
+#define generic_expect(T1, T2, SmallerPositive, SmallerNegative) \
+    assert_eq((T1)safe((T2)(0)), 0); \
+    assert_eq((T1)safe(numeric_limits_compat<T2>::max()), (T1)numeric_limits_compat<SmallerPositive>::max()); \
+    assert_eq((T1)safe(numeric_limits_compat<T2>::lowest()), (T1)numeric_limits_compat<SmallerNegative>::lowest()); \
+    assert_eq((T1)numeric_limits_compat<T2>::max(), (T1)numeric_limits_compat<SmallerPositive>::max()); \
+    assert_eq((T1)numeric_limits_compat<T2>::lowest(), (T1)numeric_limits_compat<SmallerNegative>::lowest())
+
+// the latter two assertions will obviously produce expected failures
+
+#define expect_smaller_larger(Smaller, Larger) generic_expect(Smaller, Larger,  Smaller, Smaller)
+#define expect_larger_smaller(Larger, Smaller) generic_expect(Larger,  Smaller, Smaller, Smaller)
+#define expect_lower_higher(Lower, Higher)     generic_expect(Lower,   Higher,  Lower,   Higher)
+#define expect_higher_lower(Higher, Lower)     generic_expect(Higher,  Lower,   Lower,   Higher)
+
+#define expect_smaller_larger2(Smaller, Larger) \
+    expect_smaller_larger(Smaller, Larger); \
+    expect_larger_smaller(Larger, Smaller)
+
+#define expect_lower_higher2(Lower, Higher) \
+    expect_lower_higher(Lower, Higher); \
+    expect_higher_lower(Higher, Lower)
+
 printf("non-truncating tests passed\n");
-    // long double -> float
-    assert(safe_cast_trunc<float>(static_cast<long double>(0)) == 0.0);
-    assert(safe_cast_trunc<float>(numeric_limits_compat<long double>::max()) == numeric_limits_compat<float>::max());
-    assert(safe_cast_trunc<float>(-numeric_limits_compat<long double>::max()) == -numeric_limits_compat<float>::max());
 
-    // float -> long double
-    assert(safe_cast_trunc<long double>(static_cast<float>(0)) == 0.0);
-    assert(safe_cast_trunc<long double>(numeric_limits_compat<float>::max()) == numeric_limits_compat<float>::max());
-    assert(safe_cast_trunc<long double>(-numeric_limits_compat<float>::max()) == -numeric_limits_compat<float>::max());
-
-    // double -> int
-    assert(safe_cast_trunc<int>(0.0) == 0);
-    assert(safe_cast_trunc<int>(numeric_limits_compat<double>::max()) == numeric_limits_compat<int>::max());
-    assert(safe_cast_trunc<int>(-numeric_limits_compat<double>::max()) == numeric_limits_compat<int>::min());
-
-    // int -> double
-    assert(safe_cast_trunc<double>(0) == 0.0);
-    assert(safe_cast_trunc<double>(numeric_limits_compat<int>::max()) == numeric_limits_compat<int>::max());
-    assert(safe_cast_trunc<double>(numeric_limits_compat<int>::min()) == numeric_limits_compat<int>::min());
-
-    // double -> unsigned
-    assert(safe_cast_trunc<unsigned>(0.0) == 0);
-    assert(safe_cast_trunc<unsigned>(numeric_limits_compat<double>::max()) == numeric_limits_compat<unsigned>::max());
-    assert(safe_cast_trunc<unsigned>(-numeric_limits_compat<double>::max()) == numeric_limits_compat<unsigned>::min());
-
-    // unsigned -> double
-    assert(safe_cast_trunc<double>(0) == 0.0);
-    assert(safe_cast_trunc<double>(numeric_limits_compat<unsigned>::max()) == numeric_limits_compat<unsigned>::max());
-    assert(safe_cast_trunc<double>(numeric_limits_compat<unsigned>::min()) == numeric_limits_compat<unsigned>::min());
+    expect_smaller_larger2(float, long double);
+    expect_smaller_larger2(int, double);
+    expect_smaller_larger2(unsigned, double);
 
 printf("floating point tests passed\n");
 
 /// naive size comparison is "wrong"
-    // float -> uint64_t
-    assert(safe_cast_trunc<uint64_t>(0.0f) == 0);
-    assert(safe_cast_trunc<uint64_t>(numeric_limits_compat<float>::max()) == numeric_limits_compat<uint64_t>::max());
-    assert(safe_cast_trunc<uint64_t>(-numeric_limits_compat<float>::max()) == numeric_limits_compat<uint64_t>::min());
-
-    // uint64_t -> float
-    assert(safe_cast_trunc<float>(static_cast<uint64_t>(0)) == 0.0f);
-    assert(safe_cast_trunc<float>(numeric_limits_compat<uint64_t>::max()) == numeric_limits_compat<uint64_t>::max());
-    assert(safe_cast_trunc<float>(numeric_limits_compat<uint64_t>::min()) == numeric_limits_compat<uint64_t>::min());
-
-    // float -> int64_t
-    assert(safe_cast_trunc<int64_t>(0.0f) == 0);
-    assert(safe_cast_trunc<int64_t>(numeric_limits_compat<float>::max()) == numeric_limits_compat<int64_t>::max());
-    assert(safe_cast_trunc<int64_t>(-numeric_limits_compat<float>::max()) == numeric_limits_compat<int64_t>::min());
-
-    // int64_t -> float
-    assert(safe_cast_trunc<float>(static_cast<int64_t>(0)) == 0.0f);
-    assert(safe_cast_trunc<float>(numeric_limits_compat<int64_t>::max()) == numeric_limits_compat<int64_t>::max());
-    assert(safe_cast_trunc<float>(numeric_limits_compat<int64_t>::min()) == numeric_limits_compat<int64_t>::min());
+    expect_smaller_larger2(uint64_t, float);
+    expect_smaller_larger2(int64_t, float);
 
 /// naive size comparison is 'equal'
-    // float -> uint32_t
-    assert(safe_cast_trunc<uint32_t>(0.0f) == 0);
-    assert(safe_cast_trunc<uint32_t>(numeric_limits_compat<float>::max()) == numeric_limits_compat<uint32_t>::max());
-    assert(safe_cast_trunc<uint32_t>(-numeric_limits_compat<float>::max()) == numeric_limits_compat<uint32_t>::min());
-
-    // uint32_t -> float
-    assert(safe_cast_trunc<float>(static_cast<uint32_t>(0)) == 0.0f);
-    assert(safe_cast_trunc<float>(numeric_limits_compat<uint32_t>::max()) == numeric_limits_compat<uint32_t>::max());
-    assert(safe_cast_trunc<float>(numeric_limits_compat<uint32_t>::min()) == numeric_limits_compat<uint32_t>::min());
-
-    // float -> int32_t
-    assert(safe_cast_trunc<int32_t>(0.0f) == 0);
-    assert(safe_cast_trunc<int32_t>(numeric_limits_compat<float>::max()) == numeric_limits_compat<int32_t>::max());
-    assert(safe_cast_trunc<int32_t>(-numeric_limits_compat<float>::max()) == numeric_limits_compat<int32_t>::min());
-
-    // int32_t -> float
-    assert(safe_cast_trunc<float>(static_cast<int32_t>(0)) == 0.0f);
-    assert(safe_cast_trunc<float>(numeric_limits_compat<int32_t>::max()) == numeric_limits_compat<int32_t>::max());
-    assert(safe_cast_trunc<float>(numeric_limits_compat<int32_t>::min()) == numeric_limits_compat<int32_t>::min());
+    expect_smaller_larger2(uint32_t, float);
+    expect_smaller_larger2(int32_t, float);
 
 printf("naive sizeof tests passed (float <-> int64/32_t)\n");
 
 /// ints greater than float
 #ifdef SAFE_USE_INT128
-    // float -> safe_uint128_t
-    assert(safe_cast_trunc<safe_uint128_t>(0.0f) == 0);
-    assert(safe_cast_trunc<safe_uint128_t>(numeric_limits_compat<float>::max()) == numeric_limits_compat<float>::max());
-    assert(safe_cast_trunc<safe_uint128_t>(-numeric_limits_compat<float>::max()) == numeric_limits_compat<safe_uint128_t>::min());
-
-    // safe_uint128_t -> float
-    assert(safe_cast_trunc<float>(static_cast<safe_uint128_t>(0)) == 0.0f);
-    assert(safe_cast_trunc<float>(numeric_limits_compat<safe_uint128_t>::max()) == numeric_limits_compat<float>::max());
-    assert(safe_cast_trunc<float>(numeric_limits_compat<safe_uint128_t>::min()) == numeric_limits_compat<safe_uint128_t>::min());
-
+    expect_lower_higher2(float, safe_uint128_t);
+    expect_smaller_larger2(safe_int128_t, float);
 /// safe_int128_t is less than float, but test special-case handling regardless
-    // float -> safe_int128_t
-    assert(safe_cast_trunc<safe_int128_t>(0.0f) == 0);
-    assert(safe_cast_trunc<safe_int128_t>(numeric_limits_compat<float>::max()) == numeric_limits_compat<safe_int128_t>::max());
-    assert(safe_cast_trunc<safe_int128_t>(-numeric_limits_compat<float>::max()) == numeric_limits_compat<safe_int128_t>::min());
-
-    // safe_int128_t -> float
-    assert(safe_cast_trunc<float>(static_cast<safe_int128_t>(0)) == 0.0f);
-    assert(safe_cast_trunc<float>(numeric_limits_compat<safe_int128_t>::max()) == numeric_limits_compat<safe_int128_t>::max());
-    assert(safe_cast_trunc<float>(numeric_limits_compat<safe_int128_t>::min()) == numeric_limits_compat<safe_int128_t>::min());
 
 printf("extreme sizeof tests passed (float <-> safe_[u]int128_t)\n");
 
 #endif
 
 /// integers
-    // same size, both signed
-    assert(safe_cast_trunc<int>(0) == 0);
-    assert(safe_cast_trunc<int>(numeric_limits_compat<int>::max()) == numeric_limits_compat<int>::max());
-    assert(safe_cast_trunc<int>(numeric_limits_compat<int>::min()) == numeric_limits_compat<int>::min());
-
-    // same size, both unsigned
-    assert(safe_cast_trunc<unsigned>(0) == 0);
-    assert(safe_cast_trunc<unsigned>(numeric_limits_compat<unsigned>::max()) == numeric_limits_compat<unsigned>::max());
-
-    // same size, unsigned to signed
-    assert(safe_cast_trunc<int>(static_cast<unsigned>(0)) == 0);
-    assert(safe_cast_trunc<int>(numeric_limits_compat<unsigned>::max()) == numeric_limits_compat<int>::max()); // overflow fixed!
-
-    // same size, signed to unsigned
-    assert(safe_cast_trunc<unsigned>(0) == 0);
-    assert(safe_cast_trunc<unsigned>(numeric_limits_compat<int>::max()) == static_cast<unsigned>(numeric_limits_compat<int>::max()));
-    assert(safe_cast_trunc<unsigned>(numeric_limits_compat<int>::min()) == static_cast<unsigned>(0)); // underflow fixed!
+    expect_smaller_larger(int, int);
+    expect_smaller_larger(unsigned, unsigned);
+    expect_lower_higher2(int, unsigned);
 
 printf("same size integral tests passed\n");
 
-    // Target > Source, both signed
-    assert(safe_cast_trunc<int64_t>(static_cast<int32_t>(0)) == 0);
-    assert(safe_cast_trunc<int64_t>(numeric_limits_compat<int32_t>::max()) == static_cast<int64_t>(numeric_limits_compat<int32_t>::max()));
-    assert(safe_cast_trunc<int64_t>(numeric_limits_compat<int32_t>::min()) == static_cast<int64_t>(numeric_limits_compat<int32_t>::min()));
+    expect_smaller_larger2(int32_t, int64_t);
+    expect_smaller_larger2(uint32_t, uint64_t);
 
-    // Target > Source, both unsigned
-    assert(safe_cast_trunc<uint64_t>(static_cast<uint32_t>(0)) == 0);
-    assert(safe_cast_trunc<uint64_t>(numeric_limits_compat<uint32_t>::max()) == static_cast<uint64_t>(numeric_limits_compat<uint32_t>::max()));
+    expect_smaller_larger2(uint32_t, int64_t);
+    expect_lower_higher2(int32_t, uint64_t);
 
-    // Target > Source, unsigned to signed
-    assert(safe_cast_trunc<int64_t>(static_cast<uint32_t>(0)) == 0);
-    assert(safe_cast_trunc<int64_t>(numeric_limits_compat<uint32_t>::max()) == static_cast<int64_t>(numeric_limits_compat<uint32_t>::max()));
-
-    // Target > Source, signed to unsigned
-    assert(safe_cast_trunc<uint64_t>(static_cast<int32_t>(0)) == 0);
-    assert(safe_cast_trunc<uint64_t>(numeric_limits_compat<int32_t>::max()) == static_cast<uint64_t>(numeric_limits_compat<int32_t>::max()));
-    assert(safe_cast_trunc<uint64_t>(numeric_limits_compat<int32_t>::min()) == 0); // underflow fixed!
-
-printf("Target > Source integral tests passed\n");
-
-    // Target < Source, both signed
-    assert(safe_cast_trunc<int32_t>(static_cast<int64_t>(0)) == 0);
-    assert(safe_cast_trunc<int32_t>(numeric_limits_compat<int64_t>::max()) == numeric_limits_compat<int32_t>::max()); // overflow fixed!
-    assert(safe_cast_trunc<int32_t>(numeric_limits_compat<int64_t>::min()) == numeric_limits_compat<int32_t>::min()); // underflow fixed!
-
-    // Target < Source, both unsigned
-    assert(safe_cast_trunc<int32_t>(static_cast<int64_t>(0)) == 0);
-    assert(safe_cast_trunc<int32_t>(numeric_limits_compat<int64_t>::max()) == numeric_limits_compat<int32_t>::max()); // overflow fixed!
-
-    // Target < Source, unsigned to signed
-    assert(safe_cast_trunc<int32_t>(static_cast<uint64_t>(0)) == 0);
-    assert(safe_cast_trunc<int32_t>(numeric_limits_compat<uint64_t>::max()) == numeric_limits_compat<int32_t>::max()); // overflow fixed!
-
-    // Target < Source, signed to unsigned
-    assert(safe_cast_trunc<uint32_t>(static_cast<int64_t>(0)) == 0);
-    assert(safe_cast_trunc<uint32_t>(numeric_limits_compat<int64_t>::max()) == numeric_limits_compat<uint32_t>::max()); // overflow fixed!
-    assert(safe_cast_trunc<uint32_t>(numeric_limits_compat<int64_t>::min()) == 0); // underflow fixed!
-
-printf("Target < Source integral tests passed\n");
+printf("different size integral tests passed\n");
 
     return 0;
 }
