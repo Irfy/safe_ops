@@ -21,7 +21,7 @@ struct FakeLogger {
     void log(const char *level, const char *str) { printf("[log]\t%s\t%s\t%s\n", progname, level, str); }
 };
 
-int main(int argc, char**argv) {
+int main(int, char **argv) {
     progname = argv[0];
     FakeLogger logger;
 

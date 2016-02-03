@@ -91,7 +91,7 @@ struct safe_cast_impl {
 
 template<typename Target, typename Source, typename Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_ALWAYS(Source,Target)> {
-    static Target cast(Source x, PolicyArg *policy_arg = NULL) {
+    static Target cast(Source x, PolicyArg * = NULL) {
         return static_cast<Target>(x);
     }
 };
