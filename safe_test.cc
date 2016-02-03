@@ -55,6 +55,8 @@ cerr << std::boolalpha;
 // cerr_traits(long long);
 // cerr_traits(unsigned long long);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
 printf("    in the following tests, if a 'safe' test were to fail, it would look like this:\n");
     assert(safe(1) > 2);
 
@@ -90,6 +92,7 @@ printf("    no failures expected in any of the floating point comparisons (neith
     // conversion to float yields inf so it works mathematically correct
     safe_cmp_assert2(numeric_limits_compat<__uint128_t>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
     safe_cmp_assert2(numeric_limits_compat<__uint128_t>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
+#pragma GCC diagnostic pop
 
 printf("ad-hoc tests passed\n");
 
