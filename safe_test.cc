@@ -10,10 +10,10 @@ using std::endl;
 using std::bad_cast;
 
 #undef assert // for testability
-#define assert(e) ((e) ? (void)0 : ((void)printf ("%s:%u: failed assertion `%s'\n", __FILE__, __LINE__, #e)))
+//#define assert(e) ((e) ? (void)0 : ((void)printf ("%s:%u: failed assertion `%s'\n", __FILE__, __LINE__, #e)))
+#define assert(e) ((e) ? (void)0 : ((void)printf ("failed assertion `%s'\n", #e)))
 
-#include "safe_cmp.h"
-#include "safe_cast.h"
+#include "safe_ops.h"
 
 const char *progname = "";
 
@@ -25,7 +25,7 @@ int main(int, char **argv) {
     progname = argv[0];
     FakeLogger logger;
 
-    int x = safe_cast_trunc2(2.5);
+    int x = safe(2.5);
     assert(x == 2);
 // cout << "# Testing " << x << ' ' << #op << ' ' << y << endl;
 #define safe_cmp_assert_impl(x, op, y) \
