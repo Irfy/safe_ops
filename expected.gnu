@@ -57,10 +57,10 @@ failed assertion `(int64_t)numeric_limits_compat<float>::max() == (int64_t)numer
 failed assertion `(uint32_t)numeric_limits_compat<float>::max() == (uint32_t)numeric_limits_compat<uint32_t>::max(): [0] isn't == [4294967295]
 failed assertion `(int32_t)numeric_limits_compat<float>::max() == (int32_t)numeric_limits_compat<int32_t>::max(): [-2147483648] isn't == [2147483647]
 naive sizeof tests passed (float <-> int64/32_t)
-failed assertion `(float)numeric_limits_compat<safe_uint128_t>::max() == (float)numeric_limits_compat<float>::max(): [inf] isn't == [3.40282e+38]
-failed assertion `(safe_uint128_t)numeric_limits_compat<float>::lowest() == (safe_uint128_t)numeric_limits_compat<safe_uint128_t>::lowest(): [0x80000000000000008000000000000000] isn't == [0x00000000000000000000000000000000]
-failed assertion `(safe_int128_t)numeric_limits_compat<float>::max() == (safe_int128_t)numeric_limits_compat<safe_int128_t>::max(): [0xffffff00000000000000000000000000] isn't == [0x7fffffffffffffffffffffffffffffff]
-failed assertion `(safe_int128_t)numeric_limits_compat<float>::lowest() == (safe_int128_t)numeric_limits_compat<safe_int128_t>::lowest(): [0x00000100000000000000000000000000] isn't == [0x80000000000000000000000000000000]
+failed assertion `(float)numeric_limits_compat<uint128_t>::max() == (float)numeric_limits_compat<float>::max(): [inf] isn't == [3.40282e+38]
+failed assertion `(uint128_t)numeric_limits_compat<float>::lowest() == (uint128_t)numeric_limits_compat<uint128_t>::lowest(): [0x80000000000000008000000000000000] isn't == [0x00000000000000000000000000000000]
+failed assertion `(int128_t)numeric_limits_compat<float>::max() == (int128_t)numeric_limits_compat<int128_t>::max(): [0xffffff00000000000000000000000000] isn't == [0x7fffffffffffffffffffffffffffffff]
+failed assertion `(int128_t)numeric_limits_compat<float>::lowest() == (int128_t)numeric_limits_compat<int128_t>::lowest(): [0x00000100000000000000000000000000] isn't == [0x80000000000000000000000000000000]
 extreme sizeof tests passed (float <-> safe_[u]int128_t)
 failed assertion `(int)numeric_limits_compat<unsigned>::max() == (int)numeric_limits_compat<int>::max(): [-1] isn't == [2147483647]
 failed assertion `(unsigned)numeric_limits_compat<int>::lowest() == (unsigned)numeric_limits_compat<unsigned>::lowest(): [2147483648] isn't == [0]

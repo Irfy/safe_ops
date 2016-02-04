@@ -34,8 +34,10 @@
 
 #if !defined(__STRICT_ANSI__) && defined(_GLIBCXX_USE_INT128)
 #define SAFE_USE_INT128
-__extension__ typedef __int128 safe_int128_t;
-__extension__ typedef unsigned __int128 safe_uint128_t;
+namespace safe_ops {
+__extension__ typedef __int128 int128_t;
+__extension__ typedef unsigned __int128 uint128_t;
+}
 #endif
 
 #if __cplusplus >= 201103L
@@ -106,7 +108,7 @@ struct is_signed {
     gen_signed(double);
     gen_signed(long double);
 #ifdef SAFE_USE_INT128
-    gen_signed(safe_int128_t);
+    gen_signed(safe_ops::int128_t);
 #endif
 
 #undef gen_signed
@@ -118,6 +120,8 @@ struct is_unsigned {
 
 }
 #endif
+
+namespace safe_ops {
 
 /******************************************************************************
  * safe_cast implementation
@@ -367,7 +371,7 @@ struct next_larger_signed_type<T, IF(INTEGRAL(T) && sizeof(T) == 4)> {
 #ifdef SAFE_USE_INT128
 template<typename T>
 struct next_larger_signed_type<T, IF(INTEGRAL(T) && sizeof(T) == 8)> {
-    typedef safe_int128_t type;
+    typedef int128_t type;
 };
 #endif
 
@@ -471,4 +475,5 @@ struct safe_t {
 template<typename T>
 safe_t<T> safe(T x) { return safe_t<T>(x); }
 
+} // namespace safe_ops
 #endif // _SAFE_COMMON_H_

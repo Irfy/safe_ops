@@ -19,15 +19,16 @@ using std::bad_cast;
 #define assert_ne(e1, e2) assert_op(e1, !=, e2)
 
 #include "safe_ops.h"
+using namespace safe_ops;
 
 #ifdef SAFE_USE_INT128
-std::ostream& operator<<(std::ostream& os, safe_uint128_t t) {
+std::ostream& operator<<(std::ostream& os, uint128_t t) {
     os << std::hex << "0x" << std::setw(16) <<std::setfill('0') << (uint64_t)(t>>64);
     return os << std::setw(16) << std::setfill('0') << (uint64_t)(t) << std::dec;
 }
 
-std::ostream& operator<<(std::ostream& os, safe_int128_t t) {
-    return os << (safe_uint128_t)t;
+std::ostream& operator<<(std::ostream& os, int128_t t) {
+    return os << (uint128_t)t;
 }
 #endif
 
@@ -103,13 +104,13 @@ printf("    no failures expected in any of the floating point comparisons (neith
     safe_cmp_assert2(numeric_limits_compat<float>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
     safe_cmp_assert2(numeric_limits_compat<double>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
 #ifdef SAFE_USE_INT128
-    safe_cmp_assert2(numeric_limits_compat<safe_int128_t>::max(), <, <=, numeric_limits_compat<float>::max(), >, >=);
+    safe_cmp_assert2(numeric_limits_compat<int128_t>::max(), <, <=, numeric_limits_compat<float>::max(), >, >=);
 
 // special casing:
-    safe_cmp_assert2(numeric_limits_compat<safe_uint128_t>::max(), >, >=, numeric_limits_compat<float>::max(), <, <=);
+    safe_cmp_assert2(numeric_limits_compat<uint128_t>::max(), >, >=, numeric_limits_compat<float>::max(), <, <=);
     // conversion to float yields inf so it works mathematically correct
-    safe_cmp_assert2(numeric_limits_compat<safe_uint128_t>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
-    safe_cmp_assert2(numeric_limits_compat<safe_uint128_t>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
+    safe_cmp_assert2(numeric_limits_compat<uint128_t>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
+    safe_cmp_assert2(numeric_limits_compat<uint128_t>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
 #endif
 
 printf("ad-hoc tests passed\n");
@@ -178,9 +179,9 @@ printf("naive sizeof tests passed (float <-> int64/32_t)\n");
 
 /// ints greater than float
 #ifdef SAFE_USE_INT128
-    expect_lower_higher2(float, safe_uint128_t);
-    expect_smaller_larger2(safe_int128_t, float);
-/// safe_int128_t is less than float, but test special-case handling regardless
+    expect_lower_higher2(float, uint128_t);
+    expect_smaller_larger2(int128_t, float);
+/// int128_t is less than float, but test special-case handling regardless
 
 printf("extreme sizeof tests passed (float <-> safe_[u]int128_t)\n");
 
