@@ -177,7 +177,7 @@ struct numeric_limits_compat: public std::numeric_limits<T> {};
 
 // safe_cast_impl
 
-template<typename Target, typename Source, typename Policy, typename PolicyArg, typename Enable = void>
+template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg = void, typename Enable = void>
 struct safe_cast_impl {
 #if __cplusplus >= 201103L
     static_assert(std::is_fundamental<Target>::value, "Target type of overflow checking is not supported");
@@ -185,47 +185,47 @@ struct safe_cast_impl {
 #endif // for c++98, the call to cast() will simply fail to bind, instead of getting a nice error message
 };
 
-template<typename Target, typename Source, typename Policy, typename PolicyArg>
+template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_ALWAYS(Source,Target)> {
     static Target cast(Source x, PolicyArg * = NULL) {
         return static_cast<Target>(x);
     }
 };
 
-template<typename Target, typename Source, typename Policy, typename PolicyArg>
+template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_POSITIVE(Source,Target)> {
     static Target cast(Source x, PolicyArg *policy_arg = NULL) {
         if (x < 0)
-            return Policy::handle_underflow(policy_arg);
+            return Policy<Target, PolicyArg>::handle_underflow(policy_arg);
         else
             return static_cast<Target>(x);
     }
 };
 
-template<typename Target, typename Source, typename Policy, typename PolicyArg>
+template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_FROM_UNSIGNED_WHEN_SMALL_ENOUGH(Source,Target)> {
     static Target cast(Source x, PolicyArg *policy_arg = NULL) {
-        return static_cast<Source>(MAX(Target)) < x ? Policy::handle_overflow(policy_arg) : static_cast<Target>(x);
+        return static_cast<Source>(MAX(Target)) < x ? Policy<Target, PolicyArg>::handle_overflow(policy_arg) : static_cast<Target>(x);
     }
 };
 
-template<typename Target, typename Source, typename Policy, typename PolicyArg>
+template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_POSITIVE_AND_SMALL_ENOUGH(Source,Target)> {
     static Target cast(Source x, PolicyArg *policy_arg = NULL) {
         if (x < 0)
-            return Policy::handle_underflow(policy_arg);
+            return Policy<Target, PolicyArg>::handle_underflow(policy_arg);
         else
-            return static_cast<Source>(MAX(Target)) < x ? Policy::handle_overflow(policy_arg) : static_cast<Target>(x);
+            return static_cast<Source>(MAX(Target)) < x ? Policy<Target, PolicyArg>::handle_overflow(policy_arg) : static_cast<Target>(x);
     }
 };
 
-template<typename Target, typename Source, typename Policy, typename PolicyArg>
+template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_SMALL_ENOUGH(Source,Target)> {
     static Target cast(Source x, PolicyArg *policy_arg = NULL) {
         if (x < 0)
-            return static_cast<Source>(MIN(Target)) > x ? Policy::handle_underflow(policy_arg) : static_cast<Target>(x);
+            return static_cast<Source>(MIN(Target)) > x ? Policy<Target, PolicyArg>::handle_underflow(policy_arg) : static_cast<Target>(x);
         else
-            return static_cast<Source>(MAX(Target)) < x ? Policy::handle_overflow(policy_arg) : static_cast<Target>(x);
+            return static_cast<Source>(MAX(Target)) < x ? Policy<Target, PolicyArg>::handle_overflow(policy_arg) : static_cast<Target>(x);
     }
 };
 
@@ -276,22 +276,22 @@ struct policy_log {
 
 template<typename Target, typename Source>
 Target safe_cast_trunc(Source x) {
-    return safe_cast_impl<Target,Source,policy_truncate<Target>,void>::cast(x);
+    return safe_cast_impl<Target, Source, policy_truncate, void>::cast(x);
 }
 
 template<typename Target, typename Source>
 Target safe_cast_assert(Source x) {
-    return safe_cast_impl<Target,Source,policy_assert<Target>,void>::cast(x);
+    return safe_cast_impl<Target, Source, policy_assert, void>::cast(x);
 }
 
 template<typename Target, typename Source>
 Target safe_cast_throw(Source x) {
-    return safe_cast_impl<Target,Source,policy_throw<Target>,void>::cast(x);
+    return safe_cast_impl<Target, Source, policy_throw, void>::cast(x);
 }
 
 template<typename Target, typename Source, typename Logger>
 Target safe_cast_log(Source x, Logger *logger) {
-    return safe_cast_impl<Target,Source,policy_log<Target, Logger>, Logger>::cast(x, policy_arg);
+    return safe_cast_impl<Target, Source, policy_log, Logger>::cast(x, logger);
 }
 
 /******************************************************************************
@@ -445,7 +445,7 @@ struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED(Left, Right)>
  * safe/safe_t utility function/struct, combining both safe_cast and safe_cmp
  *****************************************************************************/
 
-template<typename T, template<typename, typename = void> class CastPolicy = policy_truncate, typename PolicyArg = void>
+template<typename T, template<typename, typename> class CastPolicy = policy_truncate, typename PolicyArg = void>
 struct safe_t {
     const T x;
     PolicyArg *policy_arg;
@@ -453,7 +453,7 @@ struct safe_t {
 
     template<typename Target>
     operator Target() {
-        return safe_cast_impl<Target, T, CastPolicy<Target, PolicyArg>, PolicyArg>::cast(x, policy_arg);
+        return safe_cast_impl<Target, T, CastPolicy, PolicyArg>::cast(x, policy_arg);
     }
 
 #define generator(name, op) \
