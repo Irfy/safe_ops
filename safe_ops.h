@@ -1,3 +1,7 @@
+// Copyright (c) 2016 Irfan Adilovic
+// This software is licensed under the terms of the MIT license.
+// See LICENSE for the text of the license.
+
 #ifndef _SAFE_COMMON_H_
 #define _SAFE_COMMON_H_
 
