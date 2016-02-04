@@ -32,6 +32,13 @@ std::ostream& operator<<(std::ostream& os, int128_t t) {
 }
 #endif
 
+
+#if __cplusplus < 201103L
+struct Lambda {
+    void operator ()(int result) { cout << "lambda: " << (result < 0 ? "under" : "over") << "flow detected\n"; };
+} lambda;
+#endif
+
 const char *progname = "";
 
 struct FakeLogger {
@@ -115,26 +122,48 @@ printf("    no failures expected in any of the floating point comparisons (neith
 
 printf("ad-hoc tests passed\n");
 
-printf("    expecting two asserts...\n");
+printf("    safe_cast_assert: expecting two asserts...\n");
     safe_cast_assert<int>(numeric_limits_compat<long>::max());
     safe_cast_assert<int>(numeric_limits_compat<long>::min());
+    safe_cast_assert<int>(0l);
 
-printf("    expecting two log entries...\n");
+printf("    safe_cast_result: expecting no asserts...\n");
+    int result = 0;
+    safe_cast_result<int>(numeric_limits_compat<long>::max(), &result);
+    assert(result == 1);
+    result = 0;
+    safe_cast_result<int>(numeric_limits_compat<long>::min(), &result);
+    assert(result == -1);
+    result = 2;
+    safe_cast_result<int>(0l, &result);
+    assert(result == 2);
+
+printf("    safe_cast_lambda: expecting two 'lambda: ...' messages...\n");
+#if __cplusplus >= 201103L
+    auto lambda = [](int result){ cout << "lambda: " << (result < 0 ? "under" : "over") << "flow detected\n"; };
+#else
+    // look before int main(), in global scope, there is a conditional definition of lambda old-style
+#endif
+    safe_cast_exec<int>(numeric_limits_compat<long>::max(), lambda);
+    safe_cast_exec<int>(numeric_limits_compat<long>::min(), lambda);
+
+printf("    safe_cast_log: expecting two log entries...\n");
     safe_cast_log<int>(numeric_limits_compat<long>::max(), &logger);
     safe_cast_log<int>(numeric_limits_compat<long>::min(), &logger);
 
+printf("    safe_cast_throw: expecting two bad_casts...\n");
     try {
         safe_cast_throw<int>(numeric_limits_compat<long>::max());
         assert(0);
     } catch (bad_cast &) {
-        printf ("expected bad_cast due to overflow\n");
+        printf ("bad_cast caught due to overflow\n");
     }
 
     try {
         safe_cast_throw<int>(numeric_limits_compat<long>::min());
         assert(0);
     } catch (bad_cast &) {
-        printf ("expected bad_cast due to underflow\n");
+        printf ("bad_cast caught due to underflow\n");
     }
 
 #define generic_expect(T1, T2, SmallerPositive, SmallerNegative) \
