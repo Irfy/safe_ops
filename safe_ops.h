@@ -3,7 +3,7 @@
 // See LICENSE for the text of the license.
 
 #ifndef _SAFE_COMMON_H_
-#define _SAFE_COMMON_H_
+#define _SAFE_COMMON_H_ // noundef
 
 #include <typeinfo> // std::bad_cast for policy_throw
 #include <limits>
@@ -14,6 +14,7 @@
 #endif
 
 #define IF(expr)            typename std::enable_if<(expr), void>::type
+#define IFELSE(COND, T, U)  typename std::conditional<COND, T, U>::type
 #define IS(T,U)             std::is_same<T,U>::value
 #define ISNT(T,U)           !std::is_same<T,U>::value
 #define SIZE(T,cmp,U)       (sizeof(T) cmp sizeof(U))
@@ -37,7 +38,7 @@
 #define MIN(T) numeric_limits_compat<T>::lowest()
 
 #if !defined(__STRICT_ANSI__) && defined(_GLIBCXX_USE_INT128)
-#define SAFE_USE_INT128
+#define SAFE_USE_INT128 // noundef
 namespace safe_ops {
 __extension__ typedef __int128 int128_t;
 __extension__ typedef unsigned __int128 uint128_t;
@@ -510,7 +511,7 @@ struct next_larger2<T, U, IF(!SAME_INTEGRALITY(T, U))>
 
 // safe_cmp, defaults to the language-defined comparison, which is good-enough for most cases
 
-#define generate_ops(generator) \
+#define generate_cmp_ops(generator) \
     generator(eq, ==) \
     generator(ne, !=) \
     generator(gt, >) \
@@ -525,7 +526,7 @@ struct safe_cmp {
         /* std::cout << "matched generic safe_cmp\n"; */ \
         return x op y; \
     }
-    generate_ops(generator)
+    generate_cmp_ops(generator)
 #undef generator
 };
 
@@ -535,28 +536,52 @@ struct safe_cmp {
 template<typename Left, typename Right>
 struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED(Left, Right)> {
     typedef typename next_larger2<Left, Right>::type target_type;
+
 #define generator(name, op) static bool name(Left x, Right y) { \
         /* std::cout << "matched promoting safe_cmp\n"; */ \
         return static_cast<target_type>(x) op static_cast<target_type>(y); \
     }
 
-    generate_ops(generator)
+    generate_cmp_ops(generator)
 #undef generator
 };
 
 #undef SLEFT_LE_URIGHT
 #undef DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED
 
-#undef IF
-#undef IFELSE
-#undef IS
-#undef ISNT
-#undef SIZE
+/******************************************************************************
+ * safe_arith implementation
+ *****************************************************************************/
 
-#undef SIGNED
-#undef UNSIGNED
-#undef INTEGRAL
-#undef FLOATING
+#define generate_arith_ops(generator) \
+    generator(add, +) \
+    generator(sub, -) \
+    generator(mul, *) \
+    generator(div, /) \
+    generator(mod, %)
+
+template<typename Left, typename Right>
+struct safe_arith {
+    typedef typename next_larger2<Left, Right>::type add_type;
+    typedef typename std::make_signed<add_type>::type sub_type;
+    typedef add_type mul_type;
+#if __cplusplus < 201103L
+#define decltype __typeof__
+#endif
+    typedef decltype(Left()/Right()) div_type;
+    typedef decltype(Left()%Right()) mod_type;
+#if __cplusplus < 201103L
+#undef decltype
+#endif
+
+#define generator(name, op) static name ## _type name(Left x, Right y) { \
+    return static_cast<name ## _type>(x) op static_cast<name ## _type>(y); \
+}
+
+    generate_arith_ops(generator)
+#undef generator
+};
+
 
 /******************************************************************************
  * safe/safe_t utility function/struct, combining both safe_cast and safe_cmp
@@ -564,6 +589,9 @@ struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED(Left, Right)>
 
 template<typename T, template<typename, typename> class CastPolicy = policy_truncate, typename PolicyArg = void*>
 struct safe_t {
+    typedef T type;
+    T value() { return x; }
+
     const T x;
     PolicyArg policy_arg;
     explicit safe_t(T x_, PolicyArg policy_arg_ = PolicyArg()) : x(x_), policy_arg(policy_arg_) {}
@@ -603,16 +631,46 @@ struct safe_t {
         return safe_cmp<U, T>::name(y, safe.x); \
     }
 
-    generate_ops(generator)
+    generate_cmp_ops(generator)
 #undef generator
-};
+#undef generate_cmp_ops
 
-#undef generate_ops
+#define generator(name, op) \
+    template<typename U> \
+    friend typename safe_arith<T, U>::name ## _type operator op(safe_t safe, U y) { \
+        return safe_t<  typename safe_arith<T, U>::name ## _type, \
+                        CastPolicy, \
+                        PolicyArg \
+                     >(safe_arith<T, U>::name(safe.x, y)); \
+    } \
+    template<typename U> \
+    friend typename safe_arith<U, T>::name ## _type operator op(U y, safe_t safe) { \
+        return safe_t<  typename safe_arith<U, T>::name ## _type, \
+                        CastPolicy, \
+                        PolicyArg \
+                     >(safe_arith<U, T>::name(y, safe.x)); \
+    }
+
+    generate_arith_ops(generator)
+#undef generator
+#undef generate_arith_ops
+};
 
 template<typename T>
 safe_t<T> safe(T x) { return safe_t<T>(x); }
 
 // you are encouraged to define your own project-wide xxx_safe generator that uses a different default policy
+
+#undef IF
+#undef IFELSE
+#undef IS
+#undef ISNT
+#undef SIZE
+
+#undef SIGNED
+#undef UNSIGNED
+#undef INTEGRAL
+#undef FLOATING
 
 } // namespace safe_ops
 #endif // _SAFE_COMMON_H_
