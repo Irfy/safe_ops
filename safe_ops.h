@@ -23,6 +23,7 @@
 #define UNSIGNED(T)         std::is_unsigned<T>::value
 #define INTEGRAL(T)         std::is_integral<T>::value
 #define FLOATING(T)         std::is_floating_point<T>::value
+#define ARITHMETIC(T)       (INTEGRAL(T) || FLOATING(T))
 
 #define BOTH_SIGNED         (SIGNED(Target) && SIGNED(Source))
 #define SAME_INTEGRALITY    (INTEGRAL(Target) == INTEGRAL(Source))
@@ -235,8 +236,8 @@ struct numeric_limits_compat: public std::numeric_limits<T> {};
 template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg = void*, typename Enable = void>
 struct safe_cast_impl {
 #if __cplusplus >= 201103L
-    static_assert(std::is_fundamental<Target>::value, "Target type of overflow checking is not supported");
-    static_assert(std::is_fundamental<Source>::value, "Source type for overflow checking is not supported");
+    static_assert(ARITHMETIC(Target), "Target type of overflow checking is not supported");
+    static_assert(ARITHMETIC(Source), "Source type for overflow checking is not supported");
 #endif // for c++98, the call to cast() will simply fail to bind, instead of getting a nice error message
 };
 
@@ -560,8 +561,11 @@ struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED(Left, Right)>
     generator(div, /) \
     generator(mod, %)
 
+template<typename Left, typename Right, typename Enable = void>
+struct safe_arith {};
+
 template<typename Left, typename Right>
-struct safe_arith {
+struct safe_arith<Left, Right, IF(ARITHMETIC(Left) && ARITHMETIC(Right))> {
     typedef typename next_larger2<Left, Right>::type add_type;
     typedef typename std::make_signed<add_type>::type sub_type;
     typedef add_type mul_type;
@@ -587,8 +591,15 @@ struct safe_arith {
  * safe/safe_t utility function/struct, combining both safe_cast and safe_cmp
  *****************************************************************************/
 
-template<typename T, template<typename, typename> class CastPolicy = policy_truncate, typename PolicyArg = void*>
+template<typename T, template<typename, typename> class CastPolicy = policy_truncate, typename PolicyArg = void*, typename Enable = void>
 struct safe_t {
+#if __cplusplus >= 201103L
+    static_assert(ARITHMETIC(T), "Type T did not fulfill all requirements");
+#endif
+};
+
+template<typename T, template<typename, typename> class CastPolicy, typename PolicyArg>
+struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
     typedef T type;
     T value() { return x; }
 
@@ -635,23 +646,28 @@ struct safe_t {
 #undef generator
 #undef generate_cmp_ops
 
+// safe_arith<>::[add/sub/mult/div/mod]_type
+#define RESULT_TYPE(T, U, name) typename safe_arith<T, U>::name ## _type
+
 #define generator(name, op) \
     template<typename U> \
-    friend typename safe_arith<T, U>::name ## _type operator op(safe_t safe, U y) { \
-        return safe_t<  typename safe_arith<T, U>::name ## _type, \
-                        CastPolicy, \
-                        PolicyArg \
-                     >(safe_arith<T, U>::name(safe.x, y)); \
+    friend safe_t<RESULT_TYPE(T, U, name), CastPolicy, PolicyArg> \
+    operator op(safe_t safe, U y) { \
+        return safe_t<RESULT_TYPE(T, U, name), CastPolicy, PolicyArg>( \
+                    safe_arith<T, U>::name(safe.x, y) \
+                ); \
     } \
     template<typename U> \
-    friend typename safe_arith<U, T>::name ## _type operator op(U y, safe_t safe) { \
-        return safe_t<  typename safe_arith<U, T>::name ## _type, \
-                        CastPolicy, \
-                        PolicyArg \
-                     >(safe_arith<U, T>::name(y, safe.x)); \
+    friend safe_t<RESULT_TYPE(U, T, name), CastPolicy, PolicyArg> \
+    operator op(U y, safe_t safe) { \
+        return safe_t<RESULT_TYPE(U, T, name), CastPolicy, PolicyArg>( \
+                    safe_arith<U, T>::name(y, safe.x) \
+                ); \
     }
 
     generate_arith_ops(generator)
+
+#undef RESULT_TYPE
 #undef generator
 #undef generate_arith_ops
 };
@@ -671,6 +687,7 @@ safe_t<T> safe(T x) { return safe_t<T>(x); }
 #undef UNSIGNED
 #undef INTEGRAL
 #undef FLOATING
+#undef ARITHMETIC
 
 } // namespace safe_ops
 #endif // _SAFE_COMMON_H_
