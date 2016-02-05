@@ -61,6 +61,16 @@ struct enable_if {};
         typedef T type;
     };
 
+template<bool value, typename T, typename F>
+struct conditional {
+    typedef F type;
+};
+
+    template<typename T, typename F>
+    struct conditional<true, T, F> {
+        typedef T type;
+    };
+
 template<typename T, typename U>
 struct is_same {
     static const bool value = false;
@@ -90,8 +100,28 @@ struct is_floating_point {
 
 template<typename T>
 struct is_integral {
-    static const bool value = !is_floating_point<T>::value;
+    static const bool value = false;
 };
+
+#define gen_integral(type) \
+    __extension__ template<> \
+    struct is_integral<signed type> { \
+        static const bool value = true; \
+    }; \
+    __extension__ template<> \
+    struct is_integral<unsigned type> { \
+        static const bool value = true; \
+    }
+
+    gen_integral(char);
+    gen_integral(short);
+    gen_integral(int);
+    gen_integral(long);
+#ifdef SAFE_USE_INT128
+    gen_integral(__int128);
+#endif
+
+#undef gen_integral
 
 template<typename T>
 struct is_signed {
@@ -119,9 +149,29 @@ struct is_signed {
 
 template<typename T>
 struct is_unsigned {
-    static const bool value = !is_signed<T>::value;
+    static const bool value = INTEGRAL(T) && !SIGNED(T);
 };
 
+template<typename T>
+struct make_signed {
+    typedef T type;
+};
+
+#define gen_make_signed(type_) \
+    __extension__ template<> \
+    struct make_signed<unsigned type_> { \
+        typedef signed type_ type; \
+    }
+
+    gen_make_signed(char);
+    gen_make_signed(int);
+    gen_make_signed(short);
+    gen_make_signed(long);
+#ifdef SAFE_USE_INT128
+    gen_make_signed(__int128);
+#endif
+
+#undef gen_make_signed
 }
 #endif
 
@@ -372,50 +422,91 @@ Full summary:
 
 */
 
-// next_larger_signed_type helper, defaults to double
+// next_larger<T>: the smallest type that is strictly larger than T and can contain all its types.
+// if T is unsigned, and a larger unsigned type exists, the result will be that unsigned type
+// in all other cases, a signed or floating type will be returned
 
 template<typename T, typename Enable = void>
-struct next_larger_signed_type {
-    typedef double type; // catch-all
+struct next_larger {};
+
+// double and long double both go to long double
+template<typename T>
+struct next_larger<T, IF(IS(T, double) || IS(T, long double))> {
+    typedef long double type;
 };
 
+// float, uint128_t and larger integrals : double
 template<typename T>
-struct next_larger_signed_type<T, IF(INTEGRAL(T) && sizeof(T) == 1)> {
-    typedef int16_t type;
+struct next_larger<T, IF(IS(T, float) // float
+                         || (INTEGRAL(T)
+                             && (sizeof(T) > 128/8 // [u]ints larger than 128 bits
+                                 || (UNSIGNED(T) && sizeof(T) == 128/8))))> { // uint128_t
+    typedef double type;
 };
 
-template<typename T>
-struct next_larger_signed_type<T, IF(INTEGRAL(T) && sizeof(T) == 2)> {
-    typedef int32_t type;
+// generate all versions for the usual integral types
+
+#define gen_next_larger(bits, bits2) \
+template<typename T> \
+struct next_larger<T, IF(sizeof(T) == bits/8 && SIGNED(T) && INTEGRAL(T))> { \
+    typedef int ## bits2 ## _t type; \
+}; \
+template<typename T> \
+struct next_larger<T, IF(sizeof(T) == bits/8 && UNSIGNED(T) && INTEGRAL(T))> { \
+    typedef uint ## bits2 ## _t type; \
 };
 
+gen_next_larger(8, 16)
+gen_next_larger(16, 32)
+gen_next_larger(32, 64)
+#ifdef SAFE_USE_INT128 // we need it by name, can't just use sizeof here
+gen_next_larger(64, 128)
+#else // when int128 unavailable, make 64-bits go to float
 template<typename T>
-struct next_larger_signed_type<T, IF(INTEGRAL(T) && sizeof(T) == 4)> {
-    typedef int64_t type;
-};
-
-#ifdef SAFE_USE_INT128
-template<typename T>
-struct next_larger_signed_type<T, IF(INTEGRAL(T) && sizeof(T) == 8)> {
-    typedef int128_t type;
+struct next_larger<T, IF(sizeof(T) == 64/8 && INTEGRAL(T))> {
+    typedef float type;  // can't use int128 types, go directly to float
 };
 #endif
+// int128_t is a special case -- #ifdef guard not needed, we only use sizeof here
+template<typename T>
+struct next_larger<T, IF(INTEGRAL(T) && SIGNED(T) && sizeof(T) == 128/8)> {
+    typedef float type;
+};
 
-// greater_or_equal_size_type helper, returns one of the types, whichever is larger, any of them if equal in size
+#undef gen_next_larger
+
+// next_larger2<T, U>: smallest type strictly larger than both T and U which can contain all values of both types.
+// if both are unsigned integrals, and a larger-than-both unsigned type exists, will that unsigned type be returned.
+// otherwise a signed or floating type will be returned.
 
 template<typename T, typename U, typename Enable = void>
-struct greater_or_equal_size_type {
+struct next_larger2 {};
+
+#define SAME_ATTR1_OR_ATTR2(T, U, ATTR1, ATTR2) ((ATTR1(T) && ATTR1(U)) || (ATTR2(T) && ATTR2(U)))
+#define SAME_INTEGRALITY(T, U) SAME_ATTR1_OR_ATTR2(T, U, INTEGRAL, FLOATING)
+#define SAME_SIGNEDNESS(T, U) SAME_ATTR1_OR_ATTR2(T, U, SIGNED, UNSIGNED)
+#define COMPARABLE(T, U) (SAME_INTEGRALITY(T, U) && SAME_SIGNEDNESS(T, U))
+
+template<typename T, typename U>
+struct next_larger2<T, U, IF(COMPARABLE(T, U))> {
+    typedef typename next_larger<IFELSE(SIZE(T, >=, U), T, U)>::type type;
 };
 
 template<typename T, typename U>
-struct greater_or_equal_size_type<T, U, IF(INTEGRAL(T) && INTEGRAL(U) && SIZE(T, <, U))> {
-    typedef U type;
+struct next_larger2<T, U, IF(SAME_INTEGRALITY(T, U) && !SAME_SIGNEDNESS(T, U))>
+    : next_larger2<typename std::make_signed<T>::type, typename std::make_signed<U>::type> {
 };
 
 template<typename T, typename U>
-struct greater_or_equal_size_type<T, U, IF(INTEGRAL(T) && INTEGRAL(U) && SIZE(T, >=, U))> {
-    typedef T type;
+struct next_larger2<T, U, IF(!SAME_INTEGRALITY(T, U))>
+    : next_larger<IFELSE(FLOATING(T), T, U)> {
+        // choose the floating one out of T and U, and apply next_larger to it -> minimum double result
 };
+
+#undef SAME_ATTR1_OR_ATTR2
+#undef SAME_INTEGRALITY
+#undef SAME_SIGNEDNESS
+#undef COMPARABLE
 
 // safe_cmp, defaults to the language-defined comparison, which is good-enough for most cases
 
@@ -443,10 +534,9 @@ struct safe_cmp {
 
 template<typename Left, typename Right>
 struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED(Left, Right)> {
+    typedef typename next_larger2<Left, Right>::type target_type;
 #define generator(name, op) static bool name(Left x, Right y) { \
         /* std::cout << "matched promoting safe_cmp\n"; */ \
-        typedef typename greater_or_equal_size_type<Left, Right>::type larger_type_of_the_two; \
-        typedef typename next_larger_signed_type<larger_type_of_the_two>::type target_type; \
         return static_cast<target_type>(x) op static_cast<target_type>(y); \
     }
 
@@ -458,6 +548,7 @@ struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED(Left, Right)>
 #undef DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED
 
 #undef IF
+#undef IFELSE
 #undef IS
 #undef ISNT
 #undef SIZE
