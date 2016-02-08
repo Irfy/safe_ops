@@ -54,7 +54,94 @@ struct FakeLogger {
 
 int main(int, char **argv) {
     progname = argv[0];
-    FakeLogger logger;
+
+printf("    If a 'safe' test were to fail, the assertion text would contain 'safe(' and would be easy to identify. E.g.:\n");
+    assert(safe(1) > 2);
+
+#define assert_safe_eq(s, result) assert_eq((s).value(), result)
+
+#define safe_arith_assert_impl(x, arith_op, y, z, nosafe_eq_op) \
+    assert_safe_eq(safe(x) arith_op y, z); \
+    assert_safe_eq(x arith_op safe(y), z); \
+    assert_op(x arith_op (y), nosafe_eq_op, (z))
+
+#define safe_arith_assert(x, op, y, z, nosafe_eq_op) \
+    safe_arith_assert_impl(x, op, y, z, nosafe_eq_op)
+
+#define safe_arith_assert_comm(x, op, y, z, nosafe_eq_op) \
+    safe_arith_assert_impl(x, op, y, z, nosafe_eq_op); \
+    safe_arith_assert_impl(y, op, x, z, nosafe_eq_op)
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
+
+#define gen_safe_arith_tests_nomod(T1, T2, AddMultT, SubT, DivModT) \
+    safe_arith_assert_comm(MAX(T1), +, MAX(T2),       (AddMultT)(MAX(T1)) + MAX(T2),        !=); \
+    safe_arith_assert_comm(MIN(T1), +, MIN(T2),       (AddMultT)(MIN(T1)) + MIN(T2),        !=); \
+    safe_arith_assert(     MIN(T1), -, MAX(T2),       (SubT)    (MIN(T1)) - MAX(T2),        !=); \
+    safe_arith_assert(     MAX(T1), -, MIN(T2),       (SubT)    (MAX(T1)) - MIN(T2),        !=); \
+    safe_arith_assert_comm(MAX(T1), *, MAX(T2),       (AddMultT)(MAX(T1)) * MAX(T2),        !=); \
+    safe_arith_assert_comm(MIN(T1), *, MIN(T2),       (AddMultT)(MIN(T1)) * MIN(T2),        !=); \
+    safe_arith_assert(     MIN(T1), /, (T2)1,         (DivModT) (MIN(T1)) / (T2)1  ,        ==); \
+    safe_arith_assert(     MAX(T1), /, (T2)-1,        (DivModT) (MAX(T1)) / (T2)-1 ,        ==)
+
+#define gen_safe_arith_tests(T1, T2, AddMultT, SubT, DivModT) \
+    gen_safe_arith_tests_nomod(T1, T2, AddMultT, SubT, DivModT); \
+    safe_arith_assert(     MIN(T1), %, (T2)1,         (DivModT) (MIN(T1)) % (T2)1  ,        ==); \
+    safe_arith_assert(     MAX(T1), %, (T2)-1,        (DivModT) (MAX(T1)) % (T2)-1 ,        ==)
+
+// there will be cases where T2 is unsigned and div/mod with (unsigned)-1 is tested for.
+// any failures there shall be ignored.
+
+#define gen_safe_arith_tests_float2(T1, T2, AddMultT, SubT, DivModT) \
+    gen_safe_arith_tests_nomod(T1, T2, AddMultT, SubT, DivModT); \
+    safe_arith_assert(     MIN(T1), /, (T2)1e-30,       (DivModT) (MIN(T1)) / (T2)1e-30  ,        ==); \
+    safe_arith_assert(     MAX(T1), /, (T2)-1e-30,      (DivModT) (MAX(T1)) / (T2)-1e-30 ,        ==)
+
+// the arithmetic tests generator states basically:
+//  1) + and * shall be tested commutatively
+//  2) +, * and - shall always fail to produce a mathematically correct result without safe_t
+//  3) / and % shall always produce the same result as safe_t, which is assumed to be mathematically correct
+// to fulfill 2), appropriate MIN/MAX values are always chosen to overflow non-safe_t calculations.
+
+printf("    safe_arith test int/int: no asserts expected\n");
+gen_safe_arith_tests(int, int, long, long, int);
+printf("    safe_arith test unsigned/unsigned: 5 asserts expected, unsigned lowest()\n");
+gen_safe_arith_tests(unsigned, unsigned, unsigned long, long, unsigned);
+printf("    safe_arith test int/unsigned: 4 asserts expected, unsigned lowest() and negative division\n");
+gen_safe_arith_tests(int, unsigned, long, long, long);
+printf("    safe_arith test unsigned/int: 3 asserts expected, unsigned lowest() and negative division\n");
+gen_safe_arith_tests(unsigned, int, long, long, long);
+printf("    safe_arith test int/long: no asserts expected\n");
+gen_safe_arith_tests(int, long, float, float, long);
+printf("    safe_arith test long/int: no asserts expected\n");
+gen_safe_arith_tests(long, int, float, float, long);
+printf("    safe_arith test float/uint64_t: 8 asserts expected, int too small to make a difference and 0-multiplication\n");
+gen_safe_arith_tests_nomod(float, uint64_t, double, double, float);
+printf("    safe_arith test uint64_t/float: 9 asserts expected, int too small to make a difference, 0-multiplication and non-zero division by small number\n");
+gen_safe_arith_tests_float2(uint64_t, float, double, double, double);
+printf("    safe_arith test float/float: 2 asserts expected, non-zero division by small number\n");
+gen_safe_arith_tests_float2(float, float, double, double, double);
+printf("    safe_arith test double/double: 2 asserts expected, non-zero division by small number\n");
+gen_safe_arith_tests_float2(double, double, long double, long double, long double);
+#ifdef SAFE_USE_INT128
+printf("    safe_arith test float/int128_t: no asserts expected\n");
+gen_safe_arith_tests_nomod(float, int128_t, double, double, float); // float/int128 fits in float
+printf("    safe_arith test int128_t/float: 2 asserts expected, non-zero division by small number\n");
+gen_safe_arith_tests_float2(int128_t, float, double, double, double);
+printf("    safe_arith test float/uint128_t: 6 asserts expected, unsigned lowest ops and unsigned -1 division\n");
+gen_safe_arith_tests_nomod(float, uint128_t, double, double, double); // float/uint128 fits in double
+printf("    safe_arith test uint128_t/float: 7 asserts expected, unsigned lowest ops and divisions\n");
+gen_safe_arith_tests_float2(uint128_t, float, double, double, double);
+#endif
+#pragma GCC diagnostic pop
+
+// ad-hoc cross-functional test: safe_arith + policy_throw
+    try {
+        (int)(safe(MAX(int)).pthrow() + 1);
+    } catch (...) {
+        cout << "ad-hoc test 'policy vs operator+': caught expected bad_cast: MAX(int) + 1 is no longer an int\n";
+    }
 
 // cout << "# Testing " << x << ' ' << #op << ' ' << y << endl;
 #define safe_cmp_assert_impl(x, op, y) \
@@ -86,9 +173,6 @@ cerr << std::boolalpha;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-compare"
-printf("    in the following tests, if a 'safe' test were to fail, it would look like this:\n");
-    assert(safe(1) > 2);
-
 printf("    expecting 1u >/>= int8_t(-1) to fail, but safe variants to succeed...\n");
     safe_cmp_assert2(1u, >, >=, int8_t(-1), <, <=);
 
@@ -133,13 +217,13 @@ printf("safe_cmp tests passed\n");
     const long lmin = MIN(long);
 
 printf("    safe_cast_assert: expecting two asserts...\n");
-    i = safe(lmax).policy<policy_assert>(); // usage through safe generator + .policy modifier
+    i = safe(lmax).passert(); // usage through safe generator + .policy modifier
     i = safe_t<long, policy_assert>(lmin); // usage through direct safe_t instantiation
     i = safe_cast_assert<int>(0l); // usage through safe_cast_* helpers
 
 printf("    safe_cast_result: expecting no asserts...\n");
     result = 0;
-    i = safe(lmax).policy<policy_result>(&result);
+    i = safe(lmax).presult(&result);
     assert(result == 1);
     result = 0;
     i = safe_t<long, policy_result, int*>(lmin, &result);
@@ -151,23 +235,24 @@ printf("    safe_cast_result: expecting no asserts...\n");
 printf("    safe_cast_lambda: expecting two 'lambda: ...' messages...\n");
 #if __cplusplus >= 201103L
     auto lambda = [](int result){ cout << "lambda: " << (result < 0 ? "under" : "over") << "flow detected\n"; };
-    i = safe(lmax).policy<policy_exec>(lambda);
+    i = safe(lmax).pexec(lambda);
     i = safe_t<long, policy_exec, decltype(lambda)>(lmin, lambda);
 #else
     // look before int main(), in global scope, there is a conditional definition of lambda old-style
-    i = safe(lmax).policy<policy_exec, Lambda>(lambda);
+    i = safe(lmax).pexec(lambda);
     i = safe_t<long, policy_exec, Lambda>(lmin, lambda);
 #endif
     safe_cast_exec<int>(0l, lambda);
 
 printf("    safe_cast_log: expecting two log entries...\n");
-    i = safe(lmax).policy<policy_log>(&logger);
+    FakeLogger logger;
+    i = safe(lmax).plog(&logger);
     i = safe_t<long, policy_log, FakeLogger*>(lmin, &logger);
     safe_cast_log<int>(0l, &logger);
 
 printf("    safe_cast_throw: expecting two bad_casts...\n");
     try {
-        i = safe(lmax).policy<policy_throw>();
+        i = safe(lmax).pthrow();
         assert("unreachable after throw" == NULL);
     } catch (bad_cast &) {
         printf ("bad_cast caught due to overflow\n");

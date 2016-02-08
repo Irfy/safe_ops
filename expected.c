@@ -1,5 +1,49 @@
-    in the following tests, if a 'safe' test were to fail, it would look like this:
+    If a 'safe' test were to fail, the assertion text would contain 'safe(' and would be easy to identify. E.g.:
 failed assertion `safe(1) > 2'
+    safe_arith test int/int: no asserts expected
+    safe_arith test unsigned/unsigned: 5 asserts expected, unsigned lowest()
+failed assertion `numeric_limits_compat<unsigned>::lowest() + (numeric_limits_compat<unsigned>::lowest()) != ((unsigned long)(numeric_limits_compat<unsigned>::lowest()) + numeric_limits_compat<unsigned>::lowest()): [0] isn't != [0]
+failed assertion `numeric_limits_compat<unsigned>::lowest() + (numeric_limits_compat<unsigned>::lowest()) != ((unsigned long)(numeric_limits_compat<unsigned>::lowest()) + numeric_limits_compat<unsigned>::lowest()): [0] isn't != [0]
+failed assertion `numeric_limits_compat<unsigned>::max() - (numeric_limits_compat<unsigned>::lowest()) != ((long) (numeric_limits_compat<unsigned>::max()) - numeric_limits_compat<unsigned>::lowest()): [4294967295] isn't != [4294967295]
+failed assertion `numeric_limits_compat<unsigned>::lowest() * (numeric_limits_compat<unsigned>::lowest()) != ((unsigned long)(numeric_limits_compat<unsigned>::lowest()) * numeric_limits_compat<unsigned>::lowest()): [0] isn't != [0]
+failed assertion `numeric_limits_compat<unsigned>::lowest() * (numeric_limits_compat<unsigned>::lowest()) != ((unsigned long)(numeric_limits_compat<unsigned>::lowest()) * numeric_limits_compat<unsigned>::lowest()): [0] isn't != [0]
+    safe_arith test int/unsigned: 4 asserts expected, unsigned lowest() and negative division
+failed assertion `numeric_limits_compat<int>::max() - (numeric_limits_compat<unsigned>::lowest()) != ((long) (numeric_limits_compat<int>::max()) - numeric_limits_compat<unsigned>::lowest()): [2147483647] isn't != [2147483647]
+failed assertion `numeric_limits_compat<int>::lowest() * (numeric_limits_compat<unsigned>::lowest()) != ((long)(numeric_limits_compat<int>::lowest()) * numeric_limits_compat<unsigned>::lowest()): [0] isn't != [0]
+failed assertion `numeric_limits_compat<unsigned>::lowest() * (numeric_limits_compat<int>::lowest()) != ((long)(numeric_limits_compat<int>::lowest()) * numeric_limits_compat<unsigned>::lowest()): [0] isn't != [0]
+failed assertion `numeric_limits_compat<int>::lowest() / ((unsigned)1) == ((long) (numeric_limits_compat<int>::lowest()) / (unsigned)1): [2147483648] isn't == [-2147483648]
+    safe_arith test unsigned/int: 3 asserts expected, unsigned lowest() and negative division
+failed assertion `numeric_limits_compat<unsigned>::lowest() * (numeric_limits_compat<int>::lowest()) != ((long)(numeric_limits_compat<unsigned>::lowest()) * numeric_limits_compat<int>::lowest()): [0] isn't != [0]
+failed assertion `numeric_limits_compat<int>::lowest() * (numeric_limits_compat<unsigned>::lowest()) != ((long)(numeric_limits_compat<unsigned>::lowest()) * numeric_limits_compat<int>::lowest()): [0] isn't != [0]
+failed assertion `numeric_limits_compat<unsigned>::max() / ((int)-1) == ((long) (numeric_limits_compat<unsigned>::max()) / (int)-1): [1] isn't == [-4294967295]
+    safe_arith test int/long: no asserts expected
+    safe_arith test long/int: no asserts expected
+    safe_arith test float/uint64_t: 8 asserts expected, int too small to make a difference and 0-multiplication
+failed assertion `numeric_limits_compat<float>::max() + (numeric_limits_compat<uint64_t>::max()) != ((double)(numeric_limits_compat<float>::max()) + numeric_limits_compat<uint64_t>::max()): [3.40282e+38] isn't != [3.40282e+38]
+failed assertion `numeric_limits_compat<uint64_t>::max() + (numeric_limits_compat<float>::max()) != ((double)(numeric_limits_compat<float>::max()) + numeric_limits_compat<uint64_t>::max()): [3.40282e+38] isn't != [3.40282e+38]
+failed assertion `numeric_limits_compat<float>::lowest() + (numeric_limits_compat<uint64_t>::lowest()) != ((double)(numeric_limits_compat<float>::lowest()) + numeric_limits_compat<uint64_t>::lowest()): [-3.40282e+38] isn't != [-3.40282e+38]
+failed assertion `numeric_limits_compat<uint64_t>::lowest() + (numeric_limits_compat<float>::lowest()) != ((double)(numeric_limits_compat<float>::lowest()) + numeric_limits_compat<uint64_t>::lowest()): [-3.40282e+38] isn't != [-3.40282e+38]
+failed assertion `numeric_limits_compat<float>::lowest() - (numeric_limits_compat<uint64_t>::max()) != ((double) (numeric_limits_compat<float>::lowest()) - numeric_limits_compat<uint64_t>::max()): [-3.40282e+38] isn't != [-3.40282e+38]
+failed assertion `numeric_limits_compat<float>::max() - (numeric_limits_compat<uint64_t>::lowest()) != ((double) (numeric_limits_compat<float>::max()) - numeric_limits_compat<uint64_t>::lowest()): [3.40282e+38] isn't != [3.40282e+38]
+failed assertion `numeric_limits_compat<float>::lowest() * (numeric_limits_compat<uint64_t>::lowest()) != ((double)(numeric_limits_compat<float>::lowest()) * numeric_limits_compat<uint64_t>::lowest()): [-0] isn't != [-0]
+failed assertion `numeric_limits_compat<uint64_t>::lowest() * (numeric_limits_compat<float>::lowest()) != ((double)(numeric_limits_compat<float>::lowest()) * numeric_limits_compat<uint64_t>::lowest()): [-0] isn't != [-0]
+    safe_arith test uint64_t/float: 9 asserts expected, int too small to make a difference, 0-multiplication and non-zero division by small number
+failed assertion `numeric_limits_compat<uint64_t>::max() + (numeric_limits_compat<float>::max()) != ((double)(numeric_limits_compat<uint64_t>::max()) + numeric_limits_compat<float>::max()): [3.40282e+38] isn't != [3.40282e+38]
+failed assertion `numeric_limits_compat<float>::max() + (numeric_limits_compat<uint64_t>::max()) != ((double)(numeric_limits_compat<uint64_t>::max()) + numeric_limits_compat<float>::max()): [3.40282e+38] isn't != [3.40282e+38]
+failed assertion `numeric_limits_compat<uint64_t>::lowest() + (numeric_limits_compat<float>::lowest()) != ((double)(numeric_limits_compat<uint64_t>::lowest()) + numeric_limits_compat<float>::lowest()): [-3.40282e+38] isn't != [-3.40282e+38]
+failed assertion `numeric_limits_compat<float>::lowest() + (numeric_limits_compat<uint64_t>::lowest()) != ((double)(numeric_limits_compat<uint64_t>::lowest()) + numeric_limits_compat<float>::lowest()): [-3.40282e+38] isn't != [-3.40282e+38]
+failed assertion `numeric_limits_compat<uint64_t>::lowest() - (numeric_limits_compat<float>::max()) != ((double) (numeric_limits_compat<uint64_t>::lowest()) - numeric_limits_compat<float>::max()): [-3.40282e+38] isn't != [-3.40282e+38]
+failed assertion `numeric_limits_compat<uint64_t>::max() - (numeric_limits_compat<float>::lowest()) != ((double) (numeric_limits_compat<uint64_t>::max()) - numeric_limits_compat<float>::lowest()): [3.40282e+38] isn't != [3.40282e+38]
+failed assertion `numeric_limits_compat<uint64_t>::lowest() * (numeric_limits_compat<float>::lowest()) != ((double)(numeric_limits_compat<uint64_t>::lowest()) * numeric_limits_compat<float>::lowest()): [-0] isn't != [-0]
+failed assertion `numeric_limits_compat<float>::lowest() * (numeric_limits_compat<uint64_t>::lowest()) != ((double)(numeric_limits_compat<uint64_t>::lowest()) * numeric_limits_compat<float>::lowest()): [-0] isn't != [-0]
+failed assertion `numeric_limits_compat<uint64_t>::max() / ((float)-1e-30) == ((double) (numeric_limits_compat<uint64_t>::max()) / (float)-1e-30): [-inf] isn't == [-1.84467e+49]
+    safe_arith test float/float: 2 asserts expected, non-zero division by small number
+failed assertion `numeric_limits_compat<float>::lowest() / ((float)1e-30) == ((double) (numeric_limits_compat<float>::lowest()) / (float)1e-30): [-inf] isn't == [-3.40282e+68]
+failed assertion `numeric_limits_compat<float>::max() / ((float)-1e-30) == ((double) (numeric_limits_compat<float>::max()) / (float)-1e-30): [-inf] isn't == [-3.40282e+68]
+    safe_arith test double/double: 2 asserts expected, non-zero division by small number
+failed assertion `numeric_limits_compat<double>::lowest() / ((double)1e-30) == ((long double) (numeric_limits_compat<double>::lowest()) / (double)1e-30): [-inf] isn't == [-1.79769e+338]
+failed assertion `numeric_limits_compat<double>::max() / ((double)-1e-30) == ((long double) (numeric_limits_compat<double>::max()) / (double)-1e-30): [-inf] isn't == [-1.79769e+338]
+ad-hoc test 'policy vs operator+': caught expected bad_cast: MAX(int) + 1 is no longer an int
     expecting 1u >/>= int8_t(-1) to fail, but safe variants to succeed...
 failed assertion `1u > int8_t(-1)'
 failed assertion `int8_t(-1) < 1u'
