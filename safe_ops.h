@@ -625,29 +625,52 @@ struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_OP_UNSIGNED(Left, <=, Rig
  * safe_arith implementation
  *****************************************************************************/
 
+template<typename Left, typename Right, typename Enable = void>
+struct safe_divtype_helper {
+    typedef typename fit2<Left, Right>::type div_type;
+    typedef div_type mod_type;
+};
+
+template<typename Left, typename Right>
+struct safe_divtype_helper<Left, Right, IF(FLOATING(Right))> {
+    typedef typename next_larger2<Left, Right>::type div_type; // think MAX(double)/0.1
+    typedef typename fit2<Left, Right>::type mod_type; // mod_type is always needed
+};
+
+///
+
 #define generate_arith_ops(generator) \
     generator(add, +) \
     generator(sub, -) \
     generator(mul, *) \
-    generator(div, /) \
-    generator(mod, %)
+    generator(div, /)
+// no mod/% => that is special, protected by integrality constraint on its arguments
+
+template<typename Left, typename Right, typename Enable = void>
+struct safe_arith_mod_helper : safe_divtype_helper<Left, Right> {
+    typedef typename safe_divtype_helper<Left, Right>::mod_type mod_type;
+};
+
+template<typename Left, typename Right>
+struct safe_arith_mod_helper<Left, Right, IF(INTEGRAL(Left) && INTEGRAL(Right))>
+        : safe_divtype_helper<Left, Right> {
+    typedef typename safe_divtype_helper<Left, Right>::mod_type mod_type;
+    static mod_type mod(Left x, Right y) {
+        return static_cast<mod_type>(x) % static_cast<mod_type>(y);
+    }
+};
 
 template<typename Left, typename Right, typename Enable = void>
 struct safe_arith {};
 
 template<typename Left, typename Right>
-struct safe_arith<Left, Right, IF(ARITHMETIC(Left) && ARITHMETIC(Right))> {
+struct safe_arith<Left, Right, IF(ARITHMETIC(Left) && ARITHMETIC(Right))>
+        : safe_arith_mod_helper<Left, Right> {
     typedef typename next_larger2<Left, Right>::type add_type;
     typedef typename make_signed_compat<add_type>::type sub_type;
     typedef add_type mul_type;
-#if __cplusplus < 201103L
-#define decltype __typeof__
-#endif
-    typedef decltype(Left()/Right()) div_type;
-    typedef decltype(Left()%Right()) mod_type;
-#if __cplusplus < 201103L
-#undef decltype
-#endif
+    typedef typename safe_divtype_helper<Left, Right>::div_type div_type;
+    // mod_type is inherited
 
 #define generator(name, op) static name ## _type name(Left x, Right y) { \
     return static_cast<name ## _type>(x) op static_cast<name ## _type>(y); \
@@ -737,6 +760,7 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
     }
 
     generate_arith_ops(generator)
+    generator(mod, %)
 
 #undef RESULT_TYPE
 #undef generator
