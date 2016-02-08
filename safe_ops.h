@@ -7,6 +7,7 @@
 
 #include <typeinfo> // std::bad_cast for policy_throw
 #include <limits>
+#include <climits> // needed for CHAR_MIN, as c++98 doesn't support constexpr numeric_limits<>::*()
 #include <stdint.h> // <cstdint> is not c++03 conformant
 
 #ifndef assert // use user-provided assert macro -- useful for testing
@@ -123,6 +124,11 @@ struct is_integral {
     gen_integral(__int128);
 #endif
 
+    template<>
+    struct is_integral<char> { // char is a distinct type
+        static const bool value = true;
+    };
+
 #undef gen_integral
 
 template<typename T>
@@ -146,6 +152,11 @@ struct is_signed {
 #ifdef SAFE_USE_INT128
     gen_signed(safe_ops::int128_t);
 #endif
+
+    template<>
+    struct is_signed<char> { // char is a distinct type
+        static const bool value = CHAR_MIN == 0;
+    };
 
 #undef gen_signed
 
@@ -172,6 +183,11 @@ struct make_signed {
 #ifdef SAFE_USE_INT128
     gen_make_signed(__int128);
 #endif
+
+    template<>
+    struct make_signed<char> { // char is a distinct type
+        typedef signed char type;
+    };
 
 #undef gen_make_signed
 }
