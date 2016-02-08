@@ -165,21 +165,26 @@ struct is_unsigned {
     static const bool value = INTEGRAL(T) && !SIGNED(T);
 };
 
+// make_signed: C++11 version does not include floating types
+template<typename T, typename Enable = void>
+struct make_signed {};
+
 template<typename T>
-struct make_signed {
+struct make_signed<T, IF(INTEGRAL(T) && SIGNED(T))> {
     typedef T type;
 };
 
 #define gen_make_signed(type_) \
     __extension__ template<> \
-    struct make_signed<unsigned type_> { \
+    struct make_signed<unsigned type_, void> { \
         typedef signed type_ type; \
     }
 
     gen_make_signed(char);
-    gen_make_signed(int);
     gen_make_signed(short);
+    gen_make_signed(int);
     gen_make_signed(long);
+// long long is not needed because c++11 strict includes it
 #ifdef SAFE_USE_INT128
     gen_make_signed(__int128);
 #endif
@@ -191,9 +196,20 @@ struct make_signed {
 
 #undef gen_make_signed
 }
-#endif
+#endif // std:: fixups for c++03
 
 namespace safe_ops {
+
+// compatibility versions of some std:: structs
+
+// make_signed_compat: include floating type specializations
+template<typename T, typename Enable = void>
+struct make_signed_compat : std::make_signed<T> {};
+
+template<typename T>
+struct make_signed_compat<T, IF(FLOATING(T))> {
+    typedef T type;
+};
 
 /******************************************************************************
  * safe_cast implementation
@@ -512,7 +528,7 @@ struct next_larger2<T, U, IF(COMPARABLE(T, U))> {
 
 template<typename T, typename U>
 struct next_larger2<T, U, IF(SAME_INTEGRALITY(T, U) && !SAME_SIGNEDNESS(T, U))>
-    : next_larger2<typename std::make_signed<T>::type, typename std::make_signed<U>::type> {
+    : next_larger2<typename make_signed_compat<T>::type, typename make_signed_compat<U>::type> {
 };
 
 template<typename T, typename U>
@@ -583,7 +599,7 @@ struct safe_arith {};
 template<typename Left, typename Right>
 struct safe_arith<Left, Right, IF(ARITHMETIC(Left) && ARITHMETIC(Right))> {
     typedef typename next_larger2<Left, Right>::type add_type;
-    typedef typename std::make_signed<add_type>::type sub_type;
+    typedef typename make_signed_compat<add_type>::type sub_type;
     typedef add_type mul_type;
 #if __cplusplus < 201103L
 #define decltype __typeof__
