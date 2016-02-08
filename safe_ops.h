@@ -211,6 +211,21 @@ struct make_signed_compat<T, IF(FLOATING(T))> {
     typedef T type;
 };
 
+#if __cplusplus < 201103L
+// add the missing lowest() definition to our compat version of numeric_limits
+template<typename T, typename Enable = void>
+struct numeric_limits_compat: public std::numeric_limits<T> {
+    static T lowest() { return std::numeric_limits<T>::min(); }
+};
+    template<typename T>
+    struct numeric_limits_compat<T,IF(FLOATING(T))> : public std::numeric_limits<T> {
+        static T lowest() { return -std::numeric_limits<T>::max(); }
+    };
+#else
+template<typename T>
+struct numeric_limits_compat : public std::numeric_limits<T> {};
+#endif
+
 /******************************************************************************
  * safe_cast implementation
  *****************************************************************************/
@@ -246,22 +261,6 @@ IF( (SAME_INTEGRALITY && TARGET_LE && BOTH_SIGNED) \
  || (INTEGRAL(Target) && FLOATING(Source) && SIGNED(Target) && !INT_GT_FLOAT(Target,Source)) \
  || INT_GT_FLOAT(Source,Target) \
 )
-
-#if __cplusplus < 201103L
-// add the missing lowest() definition to our compat version of numeric_limits
-template<typename T, typename Enable = void>
-struct numeric_limits_compat: public std::numeric_limits<T> {
-    static T lowest() { return std::numeric_limits<T>::min(); }
-};
-    template<typename T>
-    struct numeric_limits_compat<T,IF(FLOATING(T))> : public std::numeric_limits<T> {
-        static T lowest() { return -std::numeric_limits<T>::max(); }
-    };
-#else
-// for c++11, make the compat struct identical to the original struct
-template<typename T>
-struct numeric_limits_compat: public std::numeric_limits<T> {};
-#endif
 
 // safe_cast_impl
 
