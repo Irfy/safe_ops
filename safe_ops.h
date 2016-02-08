@@ -328,9 +328,6 @@ struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_SMALL_ENO
 #undef TARGET_LE
 #undef TARGET_GT
 #undef TARGET_GE
-#undef INT_GT_FLOAT
-#undef UINT_GT_FLOAT
-#undef INTEGRAL_GT_FLOAT
 
 template<typename Target, typename PolicyArg = void*>
 struct policy_truncate {
@@ -536,15 +533,56 @@ struct next_larger2<T, U, IF(!SAME_INTEGRALITY(T, U))>
         // choose the floating one out of T and U, and apply next_larger to it -> minimum double result
 };
 
+// fit2<T, U>: smallest type that fits all values of both T and U. If possible, the result is one of the types.
+// If not, the result is the same as next_larger2<T, U>.
+
 #define SLEFT_OP_URIGHT(Left, OP, Right) \
     (INTEGRAL(Left) && INTEGRAL(Right) && SIGNED(Left) && UNSIGNED(Right) && SIZE(Left, OP, Right))
 
 #define DIFFERENT_SIGN_AND_SIGNED_OP_UNSIGNED(T, OP, U) IF(SLEFT_OP_URIGHT(T, OP, U) || SLEFT_OP_URIGHT(U, OP, T))
 
+template<typename T, typename U, typename Enable = void>
+struct fit2 {
+    typedef IFELSE(FLOATING(T), T, U) type;
+    // default match: choose floating out of the two.
+    // same integrality is explicitly handled in partial specializations
+    // different integrality special case INTEGRAL_GT_FLOAT is also handled below
+};
+
+// same integrality, same sign => use size comparison
+template<typename T, typename U>
+struct fit2<T, U, IF(COMPARABLE(T, U))> {
+    typedef IFELSE(SIZE(T, >=, U), T, U) type;
+};
+
+// same integrality, different sign (implies integrals only), signed <= unsigned
+// => choose first signed that is larger than the unsigned => implemented by next_larger2
+template<typename T, typename U>
+struct fit2<T, U, DIFFERENT_SIGN_AND_SIGNED_OP_UNSIGNED(T, <=, U)> {
+    typedef typename next_larger2<T, U>::type type;
+};
+
+// same integrality, different sign (implies integrals only), signed > unsigned
+// => choose the signed type
+template<typename T, typename U>
+struct fit2<T, U, DIFFERENT_SIGN_AND_SIGNED_OP_UNSIGNED(T, >, U)> {
+    typedef IFELSE(SIGNED(T), T, U) type;
+};
+
+// different integrality, integral doesn't fit in `float`
+template<typename T, typename U>
+struct fit2<T, U, IF(INTEGRAL_GT_FLOAT(T, U) || INTEGRAL_GT_FLOAT(U, T))> {
+    typedef double type;
+};
+
 #undef SAME_ATTR1_OR_ATTR2
 #undef SAME_INTEGRALITY
 #undef SAME_SIGNEDNESS
 #undef COMPARABLE
+
+#undef INT_GT_FLOAT
+#undef UINT_GT_FLOAT
+#undef INTEGRAL_GT_FLOAT
 
 // safe_cmp, defaults to the language-defined comparison, which is good-enough for most cases
 
