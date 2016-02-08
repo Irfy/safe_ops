@@ -536,6 +536,11 @@ struct next_larger2<T, U, IF(!SAME_INTEGRALITY(T, U))>
         // choose the floating one out of T and U, and apply next_larger to it -> minimum double result
 };
 
+#define SLEFT_OP_URIGHT(Left, OP, Right) \
+    (INTEGRAL(Left) && INTEGRAL(Right) && SIGNED(Left) && UNSIGNED(Right) && SIZE(Left, OP, Right))
+
+#define DIFFERENT_SIGN_AND_SIGNED_OP_UNSIGNED(T, OP, U) IF(SLEFT_OP_URIGHT(T, OP, U) || SLEFT_OP_URIGHT(U, OP, T))
+
 #undef SAME_ATTR1_OR_ATTR2
 #undef SAME_INTEGRALITY
 #undef SAME_SIGNEDNESS
@@ -562,11 +567,8 @@ struct safe_cmp {
 #undef generator
 };
 
-#define SLEFT_LE_URIGHT(Left, Right) (INTEGRAL(Left) && INTEGRAL(Right) && SIGNED(Left) && UNSIGNED(Right) && SIZE(Left, <=, Right))
-#define DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED(T, U) IF(SLEFT_LE_URIGHT(T, U) || SLEFT_LE_URIGHT(U, T))
-
 template<typename Left, typename Right>
-struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED(Left, Right)> {
+struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_OP_UNSIGNED(Left, <=, Right)> {
     typedef typename next_larger2<Left, Right>::type target_type;
 
 #define generator(name, op) static bool name(Left x, Right y) { \
@@ -579,7 +581,7 @@ struct safe_cmp<Left, Right, DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED(Left, Right)>
 };
 
 #undef SLEFT_LE_URIGHT
-#undef DIFFERENT_SIGN_AND_SIGNED_LE_UNSIGNED
+#undef DIFFERENT_SIGN_AND_SIGNED_OP_UNSIGNED
 
 /******************************************************************************
  * safe_arith implementation
