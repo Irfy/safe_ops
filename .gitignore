@@ -1,5 +1,7 @@
 safe_test
-core.*
+safe_demo
+*.exe
 
-safe_test.exe
-safe_test.exe.stackdump
+core.*
+*.stackdump
+*.core
