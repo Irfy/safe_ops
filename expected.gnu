@@ -36,7 +36,7 @@ failed assertion `-1 < 4294967295u'
 failed assertion `4294967295u != -1'
 failed assertion `-1 != 4294967295u'
     no failures expected in any of the floating point comparisons (neither native nor 'safe')...
-ad-hoc tests passed
+safe_cmp tests passed
     safe_cast_assert: expecting two asserts...
 failed assertion `"Overflow detected" == NULL'
 failed assertion `"Underflow detected" == NULL'
@@ -50,7 +50,8 @@ lambda: underflow detected
     safe_cast_throw: expecting two bad_casts...
 bad_cast caught due to overflow
 bad_cast caught due to underflow
-non-truncating tests passed
+non-truncating safe_cast functional tests passed
+truncating full-coverage tests following:
 failed assertion `(float)numeric_limits_compat<long double>::max() == (float)numeric_limits_compat<float>::max(): [inf] isn't == [3.40282e+38]
 failed assertion `(float)numeric_limits_compat<long double>::lowest() == (float)numeric_limits_compat<float>::lowest(): [-inf] isn't == [-3.40282e+38]
 failed assertion `(int)numeric_limits_compat<double>::max() == (int)numeric_limits_compat<int>::max(): [-2147483648] isn't == [2147483647]

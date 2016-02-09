@@ -21,6 +21,9 @@ using std::bad_cast;
 #include "safe_ops.h"
 using namespace safe_ops;
 
+#define MAX(T) numeric_limits_compat<T>::max()
+#define MIN(T) numeric_limits_compat<T>::lowest()
+
 #ifdef SAFE_USE_INT128
 std::ostream& operator<<(std::ostream& os, uint128_t t) {
     os << std::hex << "0x" << std::setw(16) <<std::setfill('0') << (uint64_t)(t>>64);
@@ -49,8 +52,6 @@ int main(int, char **argv) {
     progname = argv[0];
     FakeLogger logger;
 
-    int x = safe(2.5);
-    assert(x == 2);
 // cout << "# Testing " << x << ' ' << #op << ' ' << y << endl;
 #define safe_cmp_assert_impl(x, op, y) \
     assert(x op y); \
@@ -108,70 +109,86 @@ printf("    expecting 4294967295u >/!= -1 to fail, but safe variants to succeed.
 #pragma GCC diagnostic pop
 
 printf("    no failures expected in any of the floating point comparisons (neither native nor 'safe')...\n");
-    safe_cmp_assert2(numeric_limits_compat<float>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
-    safe_cmp_assert2(numeric_limits_compat<double>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
+    safe_cmp_assert2(MAX(float), <, <=, MAX(double), >, >=);
+    safe_cmp_assert2(MAX(double), <, <=, MAX(long double), >, >=);
 #ifdef SAFE_USE_INT128
-    safe_cmp_assert2(numeric_limits_compat<int128_t>::max(), <, <=, numeric_limits_compat<float>::max(), >, >=);
+    safe_cmp_assert2(MAX(int128_t), <, <=, MAX(float), >, >=);
 
 // special casing:
-    safe_cmp_assert2(numeric_limits_compat<uint128_t>::max(), >, >=, numeric_limits_compat<float>::max(), <, <=);
+    safe_cmp_assert2(MAX(uint128_t), >, >=, MAX(float), <, <=);
     // conversion to float yields inf so it works mathematically correct
-    safe_cmp_assert2(numeric_limits_compat<uint128_t>::max(), <, <=, numeric_limits_compat<double>::max(), >, >=);
-    safe_cmp_assert2(numeric_limits_compat<uint128_t>::max(), <, <=, numeric_limits_compat<long double>::max(), >, >=);
+    safe_cmp_assert2(MAX(uint128_t), <, <=, MAX(double), >, >=);
+    safe_cmp_assert2(MAX(uint128_t), <, <=, MAX(long double), >, >=);
 #endif
 
-printf("ad-hoc tests passed\n");
+printf("safe_cmp tests passed\n");
+
+    int i;
+    int result = 0;
+    const long lmax = MAX(long);
+    const long lmin = MIN(long);
 
 printf("    safe_cast_assert: expecting two asserts...\n");
-    safe_cast_assert<int>(numeric_limits_compat<long>::max());
-    safe_cast_assert<int>(numeric_limits_compat<long>::min());
-    safe_cast_assert<int>(0l);
+    i = safe(lmax).policy<policy_assert>(); // usage through safe generator + .policy modifier
+    i = safe_t<long, policy_assert>(lmin); // usage through direct safe_t instantiation
+    i = safe_cast_assert<int>(0l); // usage through safe_cast_* helpers
 
 printf("    safe_cast_result: expecting no asserts...\n");
-    int result = 0;
-    safe_cast_result<int>(numeric_limits_compat<long>::max(), &result);
+    result = 0;
+    i = safe(lmax).policy<policy_result>(&result);
     assert(result == 1);
     result = 0;
-    safe_cast_result<int>(numeric_limits_compat<long>::min(), &result);
+    i = safe_t<long, policy_result, int*>(lmin, &result);
     assert(result == -1);
-    result = 2;
+    result = 0;
     safe_cast_result<int>(0l, &result);
-    assert(result == 2);
+    assert(result == 0); // actually: unmodified
 
 printf("    safe_cast_lambda: expecting two 'lambda: ...' messages...\n");
 #if __cplusplus >= 201103L
     auto lambda = [](int result){ cout << "lambda: " << (result < 0 ? "under" : "over") << "flow detected\n"; };
+    i = safe(lmax).policy<policy_exec>(lambda);
+    i = safe_t<long, policy_exec, decltype(lambda)>(lmin, lambda);
 #else
     // look before int main(), in global scope, there is a conditional definition of lambda old-style
+    i = safe(lmax).policy<policy_exec, Lambda>(lambda);
+    i = safe_t<long, policy_exec, Lambda>(lmin, lambda);
 #endif
-    safe_cast_exec<int>(numeric_limits_compat<long>::max(), lambda);
-    safe_cast_exec<int>(numeric_limits_compat<long>::min(), lambda);
+    safe_cast_exec<int>(0l, lambda);
 
 printf("    safe_cast_log: expecting two log entries...\n");
-    safe_cast_log<int>(numeric_limits_compat<long>::max(), &logger);
-    safe_cast_log<int>(numeric_limits_compat<long>::min(), &logger);
+    i = safe(lmax).policy<policy_log>(&logger);
+    i = safe_t<long, policy_log, FakeLogger*>(lmin, &logger);
+    safe_cast_log<int>(0l, &logger);
 
 printf("    safe_cast_throw: expecting two bad_casts...\n");
     try {
-        safe_cast_throw<int>(numeric_limits_compat<long>::max());
-        assert(0);
+        i = safe(lmax).policy<policy_throw>();
+        assert("unreachable after throw" == NULL);
     } catch (bad_cast &) {
         printf ("bad_cast caught due to overflow\n");
     }
 
     try {
-        safe_cast_throw<int>(numeric_limits_compat<long>::min());
-        assert(0);
+        i = safe_t<long, policy_throw>(lmin);
+        assert("unreachable after throw" == NULL);
     } catch (bad_cast &) {
         printf ("bad_cast caught due to underflow\n");
     }
 
+    safe_cast_throw<int>(0l);
+
+    (void)i; // silence compiler warnings
+
+printf("non-truncating safe_cast functional tests passed\n");
+printf("truncating full-coverage tests following:\n");
+
 #define generic_expect(T1, T2, SmallerPositive, SmallerNegative) \
     assert_eq((T1)safe((T2)(0)), 0); \
-    assert_eq((T1)safe(numeric_limits_compat<T2>::max()), (T1)numeric_limits_compat<SmallerPositive>::max()); \
-    assert_eq((T1)safe(numeric_limits_compat<T2>::lowest()), (T1)numeric_limits_compat<SmallerNegative>::lowest()); \
-    assert_eq((T1)numeric_limits_compat<T2>::max(), (T1)numeric_limits_compat<SmallerPositive>::max()); \
-    assert_eq((T1)numeric_limits_compat<T2>::lowest(), (T1)numeric_limits_compat<SmallerNegative>::lowest())
+    assert_eq((T1)safe(MAX(T2)), (T1)MAX(SmallerPositive)); \
+    assert_eq((T1)safe(MIN(T2)), (T1)MIN(SmallerNegative)); \
+    assert_eq((T1)MAX(T2), (T1)MAX(SmallerPositive)); \
+    assert_eq((T1)MIN(T2), (T1)MIN(SmallerNegative))
 
 // the latter two assertions will obviously produce expected failures
 
@@ -187,8 +204,6 @@ printf("    safe_cast_throw: expecting two bad_casts...\n");
 #define expect_lower_higher2(Lower, Higher) \
     expect_lower_higher(Lower, Higher); \
     expect_higher_lower(Higher, Lower)
-
-printf("non-truncating tests passed\n");
 
     expect_smaller_larger2(float, long double);
     expect_smaller_larger2(int, double);
