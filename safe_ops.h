@@ -473,6 +473,26 @@ struct safe_t {
     PolicyArg policy_arg;
     explicit safe_t(T x_, PolicyArg policy_arg_ = PolicyArg()) : x(x_), policy_arg(policy_arg_) {}
 
+    // generic policy helper: with argument
+    template<template<typename, typename> class NewCastPolicy, typename NewPolicyArg>
+    safe_t<T, NewCastPolicy, NewPolicyArg> policy(NewPolicyArg new_policy_arg) {
+        return safe_t<T, NewCastPolicy, NewPolicyArg>(x, new_policy_arg);
+    }
+
+    // generic policy helper: without argument
+    template<template<typename, typename> class NewCastPolicy>
+    safe_t<T, NewCastPolicy> policy() { return policy<NewCastPolicy, void*>(NULL); }
+
+    // built-in policy helpers
+    safe_t<T, policy_truncate>      ptruncate()          { return policy<policy_truncate>(); }
+    safe_t<T, policy_result, int*>  presult(int *result) { return policy<policy_result, int*>(result); }
+    template<typename Lambda>
+    safe_t<T, policy_exec, Lambda>  pexec(Lambda lambda) { return policy<policy_exec, Lambda>(lambda); }
+    safe_t<T, policy_assert>        passert()            { return policy<policy_assert>(); }
+    safe_t<T, policy_throw>         pthrow()             { return policy<policy_throw>(); }
+    template<typename Logger>
+    safe_t<T, policy_log, Logger>   plog(Logger logger)  { return policy<policy_log, Logger>(logger); }
+
     template<typename Target>
     operator Target() {
         return safe_cast_impl<Target, T, CastPolicy, PolicyArg>::cast(x, policy_arg);
@@ -496,6 +516,8 @@ struct safe_t {
 
 template<typename T>
 safe_t<T> safe(T x) { return safe_t<T>(x); }
+
+// you are encouraged to define your own project-wide xxx_safe generator that uses a different default policy
 
 } // namespace safe_ops
 #endif // _SAFE_COMMON_H_
