@@ -14,6 +14,10 @@
 #include <cassert> // for policy_assert
 #endif
 
+#ifdef SAFE_DEBUG
+#include <iostream> // for debug output via std::cout
+#endif
+
 #define IF(expr)            typename std::enable_if<(expr), void>::type
 #define IFELSE(COND, T, U)  typename std::conditional<COND, T, U>::type
 #define IS(T,U)             std::is_same<T,U>::value
@@ -272,9 +276,18 @@ struct safe_cast_impl {
 #endif // for c++98, the call to cast() will simply fail to bind, instead of getting a nice error message
 };
 
+static inline
+void debug_cast(const char *message) {
+    (void)message;
+#ifdef SAFE_DEBUG
+    std::cout << "safe_cast_impl: " << message << std::endl;
+#endif
+}
+
 template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_ALWAYS(Source,Target)> {
     static Target cast(Source x, PolicyArg = PolicyArg()) {
+        debug_cast("CASTABLE_ALWAYS");
         return static_cast<Target>(x);
     }
 };
@@ -282,6 +295,7 @@ struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_ALWAYS(Source,
 template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_POSITIVE(Source,Target)> {
     static Target cast(Source x, PolicyArg policy_arg = PolicyArg()) {
+        debug_cast("CASTABLE_WHEN_POSITIVE");
         if (x < 0)
             return Policy<Target, PolicyArg>::handle_underflow(policy_arg);
         else
@@ -292,6 +306,7 @@ struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_POSITIVE(
 template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_FROM_UNSIGNED_WHEN_SMALL_ENOUGH(Source,Target)> {
     static Target cast(Source x, PolicyArg policy_arg = PolicyArg()) {
+        debug_cast("CASTABLE_FROM_UNSIGNED_WHEN_SMALL_ENOUGH");
         return static_cast<Source>(MAX(Target)) < x ? Policy<Target, PolicyArg>::handle_overflow(policy_arg) : static_cast<Target>(x);
     }
 };
@@ -299,6 +314,7 @@ struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_FROM_UNSIGNED_
 template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_POSITIVE_AND_SMALL_ENOUGH(Source,Target)> {
     static Target cast(Source x, PolicyArg policy_arg = PolicyArg()) {
+        debug_cast("CASTABLE_WHEN_POSITIVE_AND_SMALL_ENOUGH");
         if (x < 0)
             return Policy<Target, PolicyArg>::handle_underflow(policy_arg);
         else
@@ -309,6 +325,7 @@ struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_POSITIVE_
 template<typename Target, typename Source, template<typename, typename> class Policy, typename PolicyArg>
 struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_SMALL_ENOUGH(Source,Target)> {
     static Target cast(Source x, PolicyArg policy_arg = PolicyArg()) {
+        debug_cast("CASTABLE_WHEN_SMALL_ENOUGH");
         if (x < 0)
             return static_cast<Source>(MIN(Target)) > x ? Policy<Target, PolicyArg>::handle_underflow(policy_arg) : static_cast<Target>(x);
         else
@@ -329,40 +346,93 @@ struct safe_cast_impl<Target, Source, Policy, PolicyArg, CASTABLE_WHEN_SMALL_ENO
 #undef TARGET_GT
 #undef TARGET_GE
 
+static inline
+void debug_xflow(const char *policy, const char *xflow) {
+    (void)policy;
+    (void)xflow;
+#ifdef SAFE_DEBUG
+    std::cout << "policy_" << policy << "::handle_" << xflow << "flow" << std::endl;
+#endif
+}
+
 template<typename Target, typename PolicyArg = void*>
 struct policy_truncate {
-    static Target handle_overflow(PolicyArg) { return MAX(Target); }
-    static Target handle_underflow(PolicyArg) { return MIN(Target); }
+    static Target handle_overflow(PolicyArg) {
+        debug_xflow("truncate", "over");
+        return MAX(Target);
+    }
+    static Target handle_underflow(PolicyArg) {
+        debug_xflow("truncate", "under");
+        return MIN(Target);
+    }
 };
 
 template<typename Target, typename Result = int*>
 struct policy_result {
-    static Target handle_overflow(Result result) { *result = 1; return MAX(Target); }
-    static Target handle_underflow(Result result) { *result = -1; return MIN(Target); }
+    static Target handle_overflow(Result result) {
+        debug_xflow("result", "over");
+        *result = 1;
+        return MAX(Target);
+    }
+    static Target handle_underflow(Result result) {
+        debug_xflow("result", "under");
+        *result = -1;
+        return MIN(Target);
+    }
 };
 
 template<typename Target, typename Lambda>
 struct policy_exec {
-    static Target handle_overflow(Lambda lambda) { lambda(1); return MAX(Target); }
-    static Target handle_underflow(Lambda lambda) { lambda(-1); return MIN(Target); }
+    static Target handle_overflow(Lambda lambda) {
+        debug_xflow("exec", "over");
+        lambda(1);
+        return MAX(Target);
+    }
+    static Target handle_underflow(Lambda lambda) {
+        debug_xflow("exec", "under");
+        lambda(-1);
+        return MIN(Target);
+    }
 };
 
 template<typename Target, typename PolicyArg = void*>
 struct policy_assert {
-    static Target handle_overflow(PolicyArg) { assert("Overflow detected" == NULL); return MAX(Target); }
-    static Target handle_underflow(PolicyArg) { assert("Underflow detected" == NULL); return MIN(Target); }
+    static Target handle_overflow(PolicyArg) {
+        debug_xflow("assert", "over");
+        assert("Overflow detected" == NULL);
+        return MAX(Target);
+    }
+    static Target handle_underflow(PolicyArg) {
+        debug_xflow("assert", "under");
+        assert("Underflow detected" == NULL);
+        return MIN(Target);
+    }
 };
 
 template<typename Target, typename PolicyArg = void*>
 struct policy_throw {
-    static Target handle_overflow(PolicyArg) { throw std::bad_cast(); }
-    static Target handle_underflow(PolicyArg) { throw std::bad_cast(); }
+    static Target handle_overflow(PolicyArg) {
+        debug_xflow("throw", "over");
+        throw std::bad_cast();
+    }
+    static Target handle_underflow(PolicyArg) {
+        debug_xflow("throw", "under");
+        throw std::bad_cast();
+    }
 };
 
 template<typename Target, typename Logger>
 struct policy_log {
-    static Target handle_overflow(Logger logger) { logger->log ("E", "Overflow detected"); return MAX(Target); }
-    static Target handle_underflow(Logger logger) { logger->log ("E", "Underflow detected"); return MIN(Target); }
+    static Target handle_overflow(Logger logger) {
+        debug_xflow("log", "over");
+        logger->log ("E", "Overflow detected");
+        return MAX(Target);
+    }
+    static Target handle_underflow(Logger logger) {
+        debug_xflow("log", "under");
+        logger->log ("E", "Underflow detected");
+        return MIN(Target);
+    }
 };
 
 #undef MAX
@@ -685,6 +755,41 @@ struct safe_arith<Left, Right, IF(ARITHMETIC(Left) && ARITHMETIC(Right))>
  * safe/safe_t utility function/struct, combining both safe_cast and safe_cmp
  *****************************************************************************/
 
+#ifdef SAFE_DEBUG
+template<template<typename, typename> class CastPolicy>
+struct debug_policy_t {
+    inline
+    void operator ()(const char *message, const char *end) {
+        std::cout << message << " with unknown/user-supplied cast policy" << end;
+    }
+};
+#define gen_debug_policy(CastPolicy) \
+template<> struct debug_policy_t<CastPolicy> { \
+    inline \
+    void operator ()(const char *message, const char *end) { \
+        std::cout << message << " with " #CastPolicy << end; \
+    } \
+}
+gen_debug_policy(policy_truncate);
+gen_debug_policy(policy_result);
+gen_debug_policy(policy_exec);
+gen_debug_policy(policy_assert);
+gen_debug_policy(policy_throw);
+gen_debug_policy(policy_log);
+#undef gen_debug_policy
+
+#endif // SAFE_DEBUG
+
+template<template<typename, typename> class CastPolicy>
+static inline
+void debug_policy(const char *message, const char *end = "\n") {
+    (void)message;
+    (void)end;
+#ifdef SAFE_DEBUG
+    debug_policy_t<CastPolicy>()(message, end);
+#endif
+}
+
 template<typename T, template<typename, typename> class CastPolicy = policy_truncate, typename PolicyArg = void*, typename Enable = void>
 struct safe_t {
 #if __cplusplus >= 201103L
@@ -699,11 +804,16 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
 
     const T x;
     PolicyArg policy_arg;
-    explicit safe_t(T x_, PolicyArg policy_arg_ = PolicyArg()) : x(x_), policy_arg(policy_arg_) {}
+    explicit safe_t(T x_, PolicyArg policy_arg_ = PolicyArg()) : x(x_), policy_arg(policy_arg_) {
+        debug_policy<CastPolicy>("creating safe_t");
+    }
 
     // generic policy helper: with argument
     template<template<typename, typename> class NewCastPolicy, typename NewPolicyArg>
-    safe_t<T, NewCastPolicy, NewPolicyArg> policy(NewPolicyArg new_policy_arg) {
+    safe_t<T, NewCastPolicy, NewPolicyArg>
+    policy(NewPolicyArg new_policy_arg) {
+        debug_policy<CastPolicy>("modifying safe_t", " ");
+        debug_policy<NewCastPolicy>("to safe_t");
         return safe_t<T, NewCastPolicy, NewPolicyArg>(x, new_policy_arg);
     }
 
@@ -723,6 +833,7 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
 
     template<typename Target>
     operator Target() {
+        debug_policy<CastPolicy>("casting safe_t");
         return safe_cast_impl<Target, T, CastPolicy, PolicyArg>::cast(x, policy_arg);
     }
 
@@ -747,6 +858,7 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
     template<typename U> \
     friend safe_t<RESULT_TYPE(T, U, name), CastPolicy, PolicyArg> \
     operator op(safe_t safe, U y) { \
+        debug_policy<CastPolicy>("operator " #op "(safe_t, U)"); \
         return safe_t<RESULT_TYPE(T, U, name), CastPolicy, PolicyArg>( \
                     safe_arith<T, U>::name(safe.x, y) \
                 ); \
@@ -754,6 +866,7 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
     template<typename U> \
     friend safe_t<RESULT_TYPE(U, T, name), CastPolicy, PolicyArg> \
     operator op(U y, safe_t safe) { \
+        debug_policy<CastPolicy>("operator " #op "(U, safe_t)"); \
         return safe_t<RESULT_TYPE(U, T, name), CastPolicy, PolicyArg>( \
                     safe_arith<U, T>::name(y, safe.x) \
                 ); \
