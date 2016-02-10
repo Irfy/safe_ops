@@ -842,13 +842,21 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
     }
 
 #define generator(name, op) \
+    /* left operator: safe-raw */ \
     template<typename U> \
     friend bool operator op(safe_t safe, U y) { \
         return safe_cmp<T, U>::name(safe.x, y); \
     } \
+    /* right operator: raw-safe */ \
     template<typename U> \
     friend bool operator op(U y, safe_t safe) { \
         return safe_cmp<U, T>::name(y, safe.x); \
+    } \
+    /* left operator: safe-safe (no right op due to ambiguity) */ \
+    template<typename OtherT, template<typename, typename> class OtherCastPolicy, typename OtherPolicyArg> \
+    bool operator op(const safe_t<OtherT, OtherCastPolicy, OtherPolicyArg>& safe) \
+    const { \
+        return safe_cmp<T, OtherT>::name(x, safe.x); \
     }
 
     generate_cmp_ops(generator)
@@ -859,6 +867,7 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
 #define RESULT_TYPE(T, U, name) typename safe_arith<T, U>::name ## _type
 
 #define generator(name, op) \
+    /* left operator: safe-raw */ \
     template<typename U> \
     friend safe_t<RESULT_TYPE(T, U, name), CastPolicy, PolicyArg> \
     operator op(safe_t safe, U y) { \
@@ -867,12 +876,24 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
                     safe_arith<T, U>::name(safe.x, y) \
                 ); \
     } \
+    /* right operator: raw-safe */ \
     template<typename U> \
     friend safe_t<RESULT_TYPE(U, T, name), CastPolicy, PolicyArg> \
     operator op(U y, safe_t safe) { \
         debug_policy<CastPolicy>("operator " #op "(U, safe_t)"); \
         return safe_t<RESULT_TYPE(U, T, name), CastPolicy, PolicyArg>( \
                     safe_arith<U, T>::name(y, safe.x) \
+                ); \
+    } \
+    /* left operator: safe-safe (no right op due to ambiguity) */ \
+    /* consequence: left operand's CastPolicy is taken over to the result */ \
+    template<typename OtherT, template<typename, typename> class OtherCastPolicy, typename OtherPolicyArg> \
+    safe_t<RESULT_TYPE(T, OtherT, name), CastPolicy, PolicyArg> \
+    operator op(safe_t<OtherT, OtherCastPolicy, OtherPolicyArg> safe) { \
+        debug_policy<CastPolicy>("operator " #op "(safe_t left, safe_t right), left", ", "); \
+        debug_policy<OtherCastPolicy>("right"); \
+        return safe_t<RESULT_TYPE(T, OtherT, name), CastPolicy, PolicyArg>( \
+                    safe_arith<T, OtherT>::name(this->x, safe.x) \
                 ); \
     }
 

@@ -136,9 +136,10 @@ gen_safe_arith_tests_float2(uint128_t, float, double, double, double);
 #endif
 #pragma GCC diagnostic pop
 
-// ad-hoc cross-functional test: safe_arith + policy_throw
+// ad-hoc cross-functional test: safe_arith + policy_throw + safe-safe operator
     try {
-        (int)(safe(MAX(int)).pthrow() + 1);
+        assert(safe(1) + safe(1) == safe(2)); // test both cmp and arith safe-safe operators
+        (int)(safe(MAX(int)).pthrow() + safe(1).passert());
     } catch (...) {
         cout << "ad-hoc test 'policy vs operator+': caught expected bad_cast: MAX(int) + 1 is no longer an int\n";
     }
