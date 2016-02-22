@@ -5,6 +5,10 @@
 #ifndef _SAFE_COMMON_H_
 #define _SAFE_COMMON_H_ // noundef
 
+#ifndef DEFAULT_SAFE_CAST_POLICY
+#define DEFAULT_SAFE_CAST_POLICY policy_throw
+#endif
+
 #include <typeinfo> // std::bad_cast for policy_throw
 #include <limits>
 #include <climits> // needed for CHAR_MIN, as c++98 doesn't support constexpr numeric_limits<>::*()
@@ -790,7 +794,7 @@ void debug_policy(const char *message, const char *end = "\n") {
 #endif
 }
 
-template<typename T, template<typename, typename> class CastPolicy = policy_truncate, typename PolicyArg = void*, typename Enable = void>
+template<typename T, template<typename, typename> class CastPolicy = DEFAULT_SAFE_CAST_POLICY, typename PolicyArg = void*, typename Enable = void>
 struct safe_t {
 #if __cplusplus >= 201103L
     static_assert(ARITHMETIC(T), "Type T did not fulfill all requirements");

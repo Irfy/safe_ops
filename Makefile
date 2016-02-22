@@ -4,7 +4,11 @@
 
 CXXFLAGS += -Wall -Wextra -pedantic
 
-all: safe_test
+OBJ = safe_test
+
+all: $(OBJ)
+
+safe_test: CPPFLAGS += -DDEFAULT_SAFE_CAST_POLICY=policy_truncate
 
 check:
 	@test $$(grep -E 'safe\(' expected.{c,gnu} | grep -Ev "'safe\('|failed assertion .safe\(1\) > 2." | wc -l) -gt 0 && { echo "expected.* files contain safe failures"; exit 1; } || echo "expected.* files are clean"
