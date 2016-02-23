@@ -58,6 +58,11 @@ int main(int, char **argv) {
 printf("    If a 'safe' test were to fail, the assertion text would contain 'safe(' and would be easy to identify. E.g.:\n");
     assert(safe(1) > 2);
 
+// precision tests
+safe_ops::intmax_t intmax = MAX(safe_ops::intmax_t);
+assert(safe(intmax-1) < safe((safe_ops::uintmax_t)(intmax))); // promotion to float/double due to signed/unsigned comparison
+assert(safe(intmax-2)+1 < safe(intmax)); // promotion to float/double due to addition
+
 #define assert_safe_eq(s, result) assert_eq((s).value(), result)
 
 #define safe_arith_assert_impl(x, arith_op, y, z, nosafe_eq_op) \

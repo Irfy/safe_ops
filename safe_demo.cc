@@ -12,7 +12,7 @@ using std::endl;
 
 int main() {
     cout << "max int + 1 unsafe: " << (MAX(int) + 1) << endl;
-    cout << "max int + 1   safe: " << (MAX(int) + safe(1)).value() << endl; // resulting type is larger than int
+    cout << "max int + 1   safe: " << (MAX(int) + safe(1)) << endl; // resulting type is larger than int
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-compare"

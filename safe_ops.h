@@ -13,6 +13,7 @@
 #include <limits>
 #include <climits> // needed for CHAR_MIN, as c++98 doesn't support constexpr numeric_limits<>::*()
 #include <stdint.h> // <cstdint> is not c++03 conformant
+#include <iostream> // for operator<<
 
 #ifndef assert // use user-provided assert macro -- useful for testing
 #include <cassert> // for policy_assert
@@ -52,6 +53,13 @@
 namespace safe_ops {
 __extension__ typedef __int128 int128_t;
 __extension__ typedef unsigned __int128 uint128_t;
+typedef int128_t intmax_t; // gcc does not define std::intmax_t to these
+typedef uint128_t uintmax_t;
+}
+#else
+namespace safe_ops {
+typedef int64_t intmax_t;
+typedef uint64_t uintmax_t;
 }
 #endif
 
@@ -804,10 +812,10 @@ struct safe_t {
 template<typename T, template<typename, typename> class CastPolicy, typename PolicyArg>
 struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
     typedef T type;
-    T value() { return x; }
+    T value() const { return x; }
 
     const T x;
-    PolicyArg policy_arg;
+    const PolicyArg policy_arg;
     explicit safe_t(T x_, PolicyArg policy_arg_ = PolicyArg()) : x(x_), policy_arg(policy_arg_) {
         debug_policy<CastPolicy>("creating safe_t");
     }
@@ -815,7 +823,8 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
     // generic policy helper: with argument
     template<template<typename, typename> class NewCastPolicy, typename NewPolicyArg>
     safe_t<T, NewCastPolicy, NewPolicyArg>
-    policy(NewPolicyArg new_policy_arg) {
+    policy(NewPolicyArg new_policy_arg)
+    const {
         debug_policy<CastPolicy>("modifying safe_t", " ");
         debug_policy<NewCastPolicy>("to safe_t");
         return safe_t<T, NewCastPolicy, NewPolicyArg>(x, new_policy_arg);
@@ -823,20 +832,21 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
 
     // generic policy helper: without argument
     template<template<typename, typename> class NewCastPolicy>
-    safe_t<T, NewCastPolicy> policy() { return policy<NewCastPolicy, void*>(NULL); }
+    safe_t<T, NewCastPolicy> policy()
+    const { return policy<NewCastPolicy, void*>(NULL); }
 
     // built-in policy helpers
-    safe_t<T, policy_truncate>      ptruncate()          { return policy<policy_truncate>(); }
-    safe_t<T, policy_result, int*>  presult(int *result) { return policy<policy_result, int*>(result); }
+    safe_t<T, policy_truncate>      ptruncate()          const { return policy<policy_truncate>(); }
+    safe_t<T, policy_result, int*>  presult(int *result) const { return policy<policy_result, int*>(result); }
     template<typename Lambda>
-    safe_t<T, policy_exec, Lambda>  pexec(Lambda lambda) { return policy<policy_exec, Lambda>(lambda); }
-    safe_t<T, policy_assert>        passert()            { return policy<policy_assert>(); }
-    safe_t<T, policy_throw>         pthrow()             { return policy<policy_throw>(); }
+    safe_t<T, policy_exec, Lambda>  pexec(Lambda lambda) const { return policy<policy_exec, Lambda>(lambda); }
+    safe_t<T, policy_assert>        passert()            const { return policy<policy_assert>(); }
+    safe_t<T, policy_throw>         pthrow()             const { return policy<policy_throw>(); }
     template<typename Logger>
-    safe_t<T, policy_log, Logger>   plog(Logger logger)  { return policy<policy_log, Logger>(logger); }
+    safe_t<T, policy_log, Logger>   plog(Logger logger)  const { return policy<policy_log, Logger>(logger); }
 
     template<typename Target>
-    operator Target() {
+    operator Target() const {
         debug_policy<CastPolicy>("casting safe_t");
         return safe_cast_impl<Target, T, CastPolicy, PolicyArg>::cast(x, policy_arg);
     }
@@ -844,12 +854,12 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
 #define generator(name, op) \
     /* left operator: safe-raw */ \
     template<typename U> \
-    friend bool operator op(safe_t safe, U y) { \
+    friend bool operator op(const safe_t& safe, U y) { \
         return safe_cmp<T, U>::name(safe.x, y); \
     } \
     /* right operator: raw-safe */ \
     template<typename U> \
-    friend bool operator op(U y, safe_t safe) { \
+    friend bool operator op(U y, const safe_t& safe) { \
         return safe_cmp<U, T>::name(y, safe.x); \
     } \
     /* left operator: safe-safe (no right op due to ambiguity) */ \
@@ -870,7 +880,7 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
     /* left operator: safe-raw */ \
     template<typename U> \
     friend safe_t<RESULT_TYPE(T, U, name), CastPolicy, PolicyArg> \
-    operator op(safe_t safe, U y) { \
+    operator op(const safe_t& safe, U y) { \
         debug_policy<CastPolicy>("operator " #op "(safe_t, U)"); \
         return safe_t<RESULT_TYPE(T, U, name), CastPolicy, PolicyArg>( \
                     safe_arith<T, U>::name(safe.x, y) \
@@ -879,7 +889,7 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
     /* right operator: raw-safe */ \
     template<typename U> \
     friend safe_t<RESULT_TYPE(U, T, name), CastPolicy, PolicyArg> \
-    operator op(U y, safe_t safe) { \
+    operator op(U y, const safe_t& safe) { \
         debug_policy<CastPolicy>("operator " #op "(U, safe_t)"); \
         return safe_t<RESULT_TYPE(U, T, name), CastPolicy, PolicyArg>( \
                     safe_arith<U, T>::name(y, safe.x) \
@@ -889,7 +899,8 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
     /* consequence: left operand's CastPolicy is taken over to the result */ \
     template<typename OtherT, template<typename, typename> class OtherCastPolicy, typename OtherPolicyArg> \
     safe_t<RESULT_TYPE(T, OtherT, name), CastPolicy, PolicyArg> \
-    operator op(safe_t<OtherT, OtherCastPolicy, OtherPolicyArg> safe) { \
+    operator op(const safe_t<OtherT, OtherCastPolicy, OtherPolicyArg>& safe) \
+    const { \
         debug_policy<CastPolicy>("operator " #op "(safe_t left, safe_t right), left", ", "); \
         debug_policy<OtherCastPolicy>("right"); \
         return safe_t<RESULT_TYPE(T, OtherT, name), CastPolicy, PolicyArg>( \
@@ -903,6 +914,9 @@ struct safe_t<T, CastPolicy, PolicyArg, IF(ARITHMETIC(T))> {
 #undef RESULT_TYPE
 #undef generator
 #undef generate_arith_ops
+
+    friend std::ostream&
+    operator <<(std::ostream& out, const safe_t& safe) { return out << safe.value(); }
 };
 
 template<typename T>
